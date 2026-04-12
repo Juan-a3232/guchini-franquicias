@@ -18,12 +18,18 @@ ESTADOS_FILE = "estados.json"
 
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
+    import asyncio
+    asyncio.create_task(evaluar_en_background())
+
+async def evaluar_en_background():
+    import asyncio
     if not os.path.exists("resultados.json"):
-        print("Evaluando aplicantes al arrancar...")
+        print("Evaluando aplicantes en background...")
+        loop = asyncio.get_event_loop()
         with open("mock_data.json", encoding="utf-8") as f:
             aplicantes = json.load(f)
-        resultados = evaluar_todos(aplicantes)
+        resultados = await loop.run_in_executor(None, evaluar_todos, aplicantes)
         with open("resultados.json", "w", encoding="utf-8") as f:
             json.dump(resultados, f, ensure_ascii=False, indent=2)
         print("Evaluación completa.")
