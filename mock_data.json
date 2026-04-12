@@ -1,0 +1,80 @@
+[
+  {
+    "id": 1,
+    "nombre": "Martín Rodríguez",
+    "email": "martin.rodriguez@gmail.com",
+    "ciudad": "Córdoba",
+    "capital_disponible": 25000,
+    "tiene_local": true,
+    "experiencia_gastronomica": "Tengo una pizzería hace 5 años en Nueva Córdoba, con 3 empleados.",
+    "por_que_guchini": "Sigo a Federico en TikTok desde el principio, me parece un producto diferenciado con mucho potencial en Córdoba. Ya tengo un local en una zona de alto tránsito.",
+    "redes_sociales": "instagram.com/martinrodriguez_cba",
+    "disponibilidad": "inmediata",
+    "fecha_aplicacion": "2025-04-01"
+  },
+  {
+    "id": 2,
+    "nombre": "Sofía Peralta",
+    "email": "sofi.peralta@hotmail.com",
+    "ciudad": "Buenos Aires - Palermo",
+    "capital_disponible": 40000,
+    "tiene_local": false,
+    "experiencia_gastronomica": "Ninguna, trabajo en marketing digital pero siempre quise tener mi propio negocio gastronómico.",
+    "por_que_guchini": "Me parece un concepto muy trendy y creo que en Palermo funcionaría muy bien. Tengo capital para invertir y ganas.",
+    "redes_sociales": "instagram.com/sofiaperalta",
+    "disponibilidad": "3 meses",
+    "fecha_aplicacion": "2025-04-03"
+  },
+  {
+    "id": 3,
+    "nombre": "Diego Fernández",
+    "email": "diegof@yahoo.com",
+    "ciudad": "Rosario",
+    "capital_disponible": 8000,
+    "tiene_local": false,
+    "experiencia_gastronomica": "Trabajé de mozo 2 años en un bar.",
+    "por_que_guchini": "Me parece buena idea y quiero emprender algo.",
+    "redes_sociales": "",
+    "disponibilidad": "cuando pueda",
+    "fecha_aplicacion": "2025-04-05"
+  },
+  {
+    "id": 4,
+    "nombre": "Valentina Torres",
+    "email": "valen.torres@gmail.com",
+    "ciudad": "Mendoza",
+    "capital_disponible": 30000,
+    "tiene_local": true,
+    "experiencia_gastronomica": "Tengo una cafetería en Mendoza hace 3 años. Manejo equipo de 5 personas y proveedores.",
+    "por_que_guchini": "Conozco el producto, vivo en Mendoza y creo que hay espacio para una segunda ubicación. Tengo un local disponible en Guaymallén.",
+    "redes_sociales": "instagram.com/cafeteria_valen",
+    "disponibilidad": "inmediata",
+    "fecha_aplicacion": "2025-04-06"
+  },
+  {
+    "id": 5,
+    "nombre": "Lucas Gómez",
+    "email": "lucas.gomez.emp@gmail.com",
+    "ciudad": "Buenos Aires - San Telmo",
+    "capital_disponible": 55000,
+    "tiene_local": true,
+    "experiencia_gastronomica": "Tengo 2 locales de hamburguesas en CABA hace 4 años. Facturamos bien, sé manejar operaciones gastronómicas a escala.",
+    "por_que_guchini": "Quiero diversificar mi portfolio gastronómico. El concepto de Guchini es sólido, el producto es diferenciado y Federico tiene un canal de distribución brutal con sus redes. Quiero ser parte del crecimiento.",
+    "redes_sociales": "instagram.com/lucasgomez_gastronomia",
+    "disponibilidad": "inmediata",
+    "fecha_aplicacion": "2025-04-07"
+  },
+  {
+    "id": 6,
+    "nombre": "Ana Castillo",
+    "email": "anacastillo@gmail.com",
+    "ciudad": "Tucumán",
+    "capital_disponible": 18000,
+    "tiene_local": false,
+    "experiencia_gastronomica": "Tengo un emprendimiento de catering hace 2 años, pequeño pero rentable.",
+    "por_que_guchini": "Me encanta el producto y creo que en Tucumán no hay nada parecido. Estoy dispuesta a alquilar un local en una zona céntrica.",
+    "redes_sociales": "instagram.com/ana.castillo.tucuman",
+    "disponibilidad": "2 meses",
+    "fecha_aplicacion": "2025-04-10"
+  }
+]
