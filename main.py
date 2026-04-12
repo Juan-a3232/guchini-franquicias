@@ -17,6 +17,18 @@ app = FastAPI()
 ESTADOS_FILE = "estados.json"
 
 
+@app.on_event("startup")
+def startup_event():
+    if not os.path.exists("resultados.json"):
+        print("Evaluando aplicantes al arrancar...")
+        with open("mock_data.json", encoding="utf-8") as f:
+            aplicantes = json.load(f)
+        resultados = evaluar_todos(aplicantes)
+        with open("resultados.json", "w", encoding="utf-8") as f:
+            json.dump(resultados, f, ensure_ascii=False, indent=2)
+        print("Evaluación completa.")
+
+
 def load_estados():
     if os.path.exists(ESTADOS_FILE):
         with open(ESTADOS_FILE, encoding="utf-8") as f:
