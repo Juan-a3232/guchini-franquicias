@@ -36,6 +36,13 @@ Evaluá cada aplicante según estos criterios:
 Devolvé SIEMPRE un JSON con este formato exacto, sin texto adicional:
 {
   "score": <número del 1 al 10 con un decimal>,
+  "breakdown": {
+    "capital": <número del 1 al 10>,
+    "experiencia": <número del 1 al 10>,
+    "local": <número del 1 al 10>,
+    "motivacion": <número del 1 al 10>,
+    "ciudad": <número del 1 al 10>
+  },
   "resumen": "<2 oraciones máximo describiendo al aplicante>",
   "fortalezas": ["<fortaleza 1>", "<fortaleza 2>"],
   "red_flags": ["<red flag 1>"],
