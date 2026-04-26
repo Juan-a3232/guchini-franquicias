@@ -7,7 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #F5F4F0;
+      --bg: #EEECE6;
       --surface: #ffffff;
       --border: #E8E6E0;
       --text: #1C1B18;
@@ -151,7 +151,7 @@
 
     .stat-card {
       background: var(--surface);
-      border-radius: 14px;
+      border-radius: 10px;
       padding: 18px 20px;
       border: 1px solid var(--border);
       box-shadow: 0 1px 3px rgba(0,0,0,0.04);
@@ -219,6 +219,7 @@
       white-space: nowrap;
       font-family: inherit;
       transition: background 0.15s;
+      margin-left: auto;
     }
     .export-btn:hover { background: #15803d; }
 
@@ -281,7 +282,7 @@
       padding-top: 3px;
     }
 
-    .name { font-size: 1rem; font-weight: 700; letter-spacing: -0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .name { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .location { font-size: 0.8rem; color: var(--muted); margin-top: 3px; }
     .date { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
 
@@ -290,7 +291,7 @@
     /* Badges — sólidos */
     .badge {
       padding: 4px 10px;
-      border-radius: 6px;
+      border-radius: 4px;
       font-size: 0.65rem;
       font-weight: 700;
       white-space: nowrap;
@@ -303,7 +304,7 @@
 
     /* Score bar principal */
     .score-bar-wrap { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
-    .score-bar { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .score-bar { flex: 1; height: 8px; background: #D8D6D0; border-radius: 4px; overflow: hidden; }
     .score-fill { height: 100%; border-radius: 4px; }
     .score-fill.high { background: #16a34a; }
     .score-fill.mid  { background: #d97706; }
@@ -322,7 +323,7 @@
     }
     .breakdown-row { display: flex; align-items: center; gap: 12px; margin-bottom: 7px; }
     .breakdown-label { font-size: 0.75rem; color: var(--muted); min-width: 90px; }
-    .breakdown-bar { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .breakdown-bar { flex: 1; height: 6px; background: #D8D6D0; border-radius: 3px; overflow: hidden; }
     .breakdown-fill { height: 100%; border-radius: 3px; display: block; }
     .breakdown-fill.high { background: #16a34a; }
     .breakdown-fill.mid  { background: #d97706; }
