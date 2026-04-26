@@ -33,6 +33,8 @@ Evaluá cada aplicante según estos criterios:
    - Aceptable: ciudad mediana con mercado joven
    - Insuficiente: ciudad pequeña o saturada
 
+Sé estricto y diferenciador en los scores. No des 9+ a todos los candidatos sólidos — reservá el 9-10 para candidatos verdaderamente excepcionales en todos los criterios. Un candidato con capital justo al límite, sin local propio, o con experiencia limitada no puede superar el 8. Usá el rango completo del 1 al 10.
+
 Devolvé SIEMPRE un JSON con este formato exacto, sin texto adicional:
 {
   "score": <número del 1 al 10 con un decimal>,
@@ -43,9 +45,9 @@ Devolvé SIEMPRE un JSON con este formato exacto, sin texto adicional:
     "motivacion": <número del 1 al 10>,
     "ciudad": <número del 1 al 10>
   },
-  "resumen": "<2 oraciones máximo describiendo al aplicante>",
-  "fortalezas": ["<fortaleza 1>", "<fortaleza 2>"],
-  "red_flags": ["<red flag 1>"],
+  "resumen": "<3 a 4 oraciones describiendo al aplicante: quién es, qué tiene a favor, qué le falta, y por qué es o no es un buen candidato para Guchini>",
+  "fortalezas": ["<fortaleza 1>", "<fortaleza 2>", "<fortaleza 3 si aplica>"],
+  "red_flags": ["<red flag 1>", "<red flag 2 si aplica>"],
   "recomendacion": "APROBAR" o "REVISAR" o "RECHAZAR"
 }
 """
