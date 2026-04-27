@@ -13,10 +13,22 @@ from openpyxl.utils import get_column_letter
 load_dotenv()
 
 from scorer import evaluar_todos
+from data_loader import load_candidates
 
 app = FastAPI()
 
 ESTADOS_FILE = "estados.json"
+MAX_CANDIDATOS = int(os.environ.get("MAX_CANDIDATOS", "40"))
+
+
+def get_aplicantes():
+    """Carga candidatos desde Google Sheet (con fallback a mock_data.json)."""
+    try:
+        return load_candidates(top_n=MAX_CANDIDATOS)
+    except Exception as e:
+        print(f"[data_loader] Error cargando desde Google Sheets: {e}. Usando mock_data.json.")
+        with open("mock_data.json", encoding="utf-8") as f:
+            return json.load(f)
 
 
 @app.on_event("startup")
@@ -29,8 +41,7 @@ async def evaluar_en_background():
     if not os.path.exists("resultados.json"):
         print("Evaluando aplicantes en background...")
         loop = asyncio.get_event_loop()
-        with open("mock_data.json", encoding="utf-8") as f:
-            aplicantes = json.load(f)
+        aplicantes = await loop.run_in_executor(None, get_aplicantes)
         resultados = await loop.run_in_executor(None, evaluar_todos, aplicantes)
         with open("resultados.json", "w", encoding="utf-8") as f:
             json.dump(resultados, f, ensure_ascii=False, indent=2)
@@ -69,9 +80,7 @@ def get_ranking():
             resultados = json.load(f)
         return merge_estados(resultados)
 
-    with open("mock_data.json", encoding="utf-8") as f:
-        aplicantes = json.load(f)
-
+    aplicantes = get_aplicantes()
     resultados = evaluar_todos(aplicantes)
 
     with open("resultados.json", "w", encoding="utf-8") as f:
@@ -124,9 +133,6 @@ def export_excel():
     AMBER = "D97706"
     RED = "DC2626"
     GRAY = "F5F5F0"
-    LIGHT_GREEN = "DCFCE7"
-    LIGHT_AMBER = "FEF9C3"
-    LIGHT_RED = "FEE2E2"
 
     def fill(hex): return PatternFill("solid", start_color=hex, fgColor=hex)
     def thin_border():
@@ -162,7 +168,7 @@ def export_excel():
         cell.border = thin_border()
     ws.row_dimensions[4].height = 28
 
-    rec_colors = {"APROBAR": (GREEN, LIGHT_GREEN), "REVISAR": (AMBER, LIGHT_AMBER), "RECHAZAR": (RED, LIGHT_RED)}
+    rec_colors = {"APROBAR": (GREEN, "DCFCE7"), "REVISAR": (AMBER, "FEF9C3"), "RECHAZAR": (RED, "FEE2E2")}
 
     for i, r in enumerate(resultados):
         e = r["evaluacion"]
@@ -215,8 +221,8 @@ def export_excel():
     ws.freeze_panes = "A5"
 
     summary_row = len(resultados) + 6
-    aprobados = sum(1 for r in resultados if r["evaluacion"]["recomendacion"] == "APROBAR")
-    revisados = sum(1 for r in resultados if r["evaluacion"]["recomendacion"] == "REVISAR")
+    aprobados  = sum(1 for r in resultados if r["evaluacion"]["recomendacion"] == "APROBAR")
+    revisados  = sum(1 for r in resultados if r["evaluacion"]["recomendacion"] == "REVISAR")
     rechazados = sum(1 for r in resultados if r["evaluacion"]["recomendacion"] == "RECHAZAR")
     ws.merge_cells(f"A{summary_row}:M{summary_row}")
     ws[f"A{summary_row}"] = f"Total: {len(resultados)}  |  Aprobar: {aprobados}  |  Revisar: {revisados}  |  Rechazar: {rechazados}"
