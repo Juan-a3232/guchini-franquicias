@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Guchini — Franquicias</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
       --bg: #EEECE6;
@@ -52,32 +53,28 @@
       border-bottom: 1px solid rgba(255,255,255,0.06);
     }
 
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
+    .logo { display: flex; align-items: center; gap: 14px; }
+    .logo-wordmark { font-size: 1rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #ffffff; }
+    .logo-divider { width: 1px; height: 16px; background: rgba(255,255,255,0.2); }
+    .logo-sub { font-size: 0.72rem; opacity: 0.4; font-weight: 400; letter-spacing: 0.3px; }
 
-    .logo-wordmark {
-      font-size: 1rem;
-      font-weight: 800;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: #ffffff;
+    /* Tab nav in header */
+    .tab-nav { display: flex; gap: 2px; background: rgba(255,255,255,0.07); border-radius: 8px; padding: 3px; }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.5);
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+      letter-spacing: 0.2px;
     }
-
-    .logo-divider {
-      width: 1px;
-      height: 16px;
-      background: rgba(255,255,255,0.2);
-    }
-
-    .logo-sub {
-      font-size: 0.72rem;
-      opacity: 0.4;
-      font-weight: 400;
-      letter-spacing: 0.3px;
-    }
+    .tab-btn:hover { color: rgba(255,255,255,0.85); }
+    .tab-btn.active { background: rgba(255,255,255,0.13); color: #ffffff; }
 
     .header-right { display: flex; align-items: center; gap: 12px; }
 
@@ -94,6 +91,9 @@
     }
     .dark-toggle:hover { border-color: rgba(255,255,255,0.35); color: white; }
 
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
     .container { max-width: 980px; margin: 0 auto; padding: 28px 20px; }
 
     /* Umbral banner */
@@ -104,38 +104,13 @@
       padding: 14px 20px;
       margin-bottom: 20px;
     }
-    .umbral-row {
-      display: flex;
-      gap: 24px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    .umbral-row + .umbral-row {
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid var(--border);
-      justify-content: flex-end;
-    }
-    .umbral-title {
-      font-size: 0.65rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--muted);
-      font-weight: 600;
-    }
-    .criterio {
-      font-size: 0.78rem;
-      color: var(--muted);
-    }
+    .umbral-row { display: flex; gap: 24px; flex-wrap: wrap; align-items: center; }
+    .umbral-row + .umbral-row { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); justify-content: flex-end; }
+    .umbral-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 600; }
+    .criterio { font-size: 0.78rem; color: var(--muted); }
     .criterio span { font-weight: 700; color: var(--text); }
-    .umbral-min {
-      font-size: 0.78rem;
-      color: var(--muted);
-    }
-    .umbral-min span {
-      font-weight: 700;
-      color: var(--accent);
-    }
+    .umbral-min { font-size: 0.78rem; color: var(--muted); }
+    .umbral-min span { font-weight: 700; color: var(--accent); }
 
     /* Stats */
     .stats {
@@ -144,10 +119,7 @@
       gap: 12px;
       margin-bottom: 20px;
     }
-
-    @media (max-width: 600px) {
-      .stats { grid-template-columns: repeat(2, 1fr); }
-    }
+    @media (max-width: 600px) { .stats { grid-template-columns: repeat(2, 1fr); } }
 
     .stat-card {
       background: var(--surface);
@@ -156,7 +128,6 @@
       border: 1px solid var(--border);
       box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-
     .stat-card .value { font-size: 2.2rem; font-weight: 800; letter-spacing: -1.5px; line-height: 1; }
     .stat-card .label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 6px; font-weight: 500; }
     .value.green { color: #16a34a; }
@@ -165,144 +136,62 @@
     .value.neutral { color: var(--text); }
 
     /* Toolbar */
-    .toolbar {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
+    .toolbar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
     .search-input {
-      flex: 1;
-      min-width: 180px;
-      padding: 9px 14px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--input-bg);
-      color: var(--text);
-      font-size: 0.85rem;
-      font-family: inherit;
-      transition: border-color 0.15s;
+      flex: 1; min-width: 180px; padding: 9px 14px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--input-bg); color: var(--text);
+      font-size: 0.85rem; font-family: inherit; transition: border-color 0.15s;
     }
     .search-input:focus { outline: none; border-color: var(--text); }
     .search-input::placeholder { color: var(--muted); }
 
     .filter-group { display: flex; gap: 6px; flex-wrap: wrap; }
-
     .filter-btn {
-      padding: 7px 14px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--muted);
-      font-size: 0.78rem;
-      cursor: pointer;
-      font-weight: 500;
-      white-space: nowrap;
-      font-family: inherit;
-      transition: all 0.15s;
+      padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--muted); font-size: 0.78rem;
+      cursor: pointer; font-weight: 500; white-space: nowrap; font-family: inherit; transition: all 0.15s;
     }
     .filter-btn:hover { color: var(--text); border-color: var(--text); }
     .filter-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
-    [data-theme="dark"] .filter-btn.active { background: var(--text); color: var(--bg); }
 
     .export-btn {
-      padding: 8px 16px;
-      border-radius: 8px;
-      background: #16a34a;
-      color: white;
-      border: none;
-      font-size: 0.8rem;
-      cursor: pointer;
-      font-weight: 600;
-      white-space: nowrap;
-      font-family: inherit;
-      transition: background 0.15s;
-      margin-left: auto;
+      padding: 8px 16px; border-radius: 8px; background: #16a34a; color: white;
+      border: none; font-size: 0.8rem; cursor: pointer; font-weight: 600;
+      white-space: nowrap; font-family: inherit; transition: background 0.15s; margin-left: auto;
     }
     .export-btn:hover { background: #15803d; }
 
     .refresh-btn {
-      padding: 8px 16px;
-      border-radius: 8px;
-      background: var(--text);
-      color: var(--bg);
-      border: none;
-      font-size: 0.8rem;
-      cursor: pointer;
-      font-weight: 600;
-      white-space: nowrap;
-      font-family: inherit;
+      padding: 8px 16px; border-radius: 8px; background: var(--text); color: var(--bg);
+      border: none; font-size: 0.8rem; cursor: pointer; font-weight: 600;
+      white-space: nowrap; font-family: inherit;
     }
     .refresh-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-    .section-title {
-      font-size: 0.65rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--muted);
-      margin-bottom: 12px;
-      font-weight: 600;
-    }
+    .section-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; font-weight: 600; }
 
     /* Cards */
     .card {
-      background: var(--surface);
-      border-radius: 16px;
-      border: 1px solid var(--border);
-      padding: 24px;
-      margin-bottom: 10px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      background: var(--surface); border-radius: 16px; border: 1px solid var(--border);
+      padding: 24px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
       transition: box-shadow 0.15s, transform 0.15s;
     }
-    .card:hover {
-      box-shadow: 0 8px 24px rgba(0,0,0,0.09);
-      transform: translateY(-1px);
-    }
+    .card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.09); transform: translateY(-1px); }
     [data-theme="dark"] .card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
 
-    .card-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      cursor: pointer;
-    }
-
+    .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; cursor: pointer; }
     .card-left { display: flex; gap: 16px; align-items: flex-start; flex: 1; min-width: 0; }
-
-    .rank {
-      font-size: 0.68rem;
-      font-weight: 700;
-      color: var(--muted);
-      min-width: 20px;
-      flex-shrink: 0;
-      letter-spacing: 0.5px;
-      padding-top: 3px;
-    }
-
+    .rank { font-size: 0.68rem; font-weight: 700; color: var(--muted); min-width: 20px; flex-shrink: 0; letter-spacing: 0.5px; padding-top: 3px; }
     .name { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .location { font-size: 0.8rem; color: var(--muted); margin-top: 3px; }
     .date { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
-
     .card-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
-    /* Badges — sólidos */
-    .badge {
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 0.65rem;
-      font-weight: 700;
-      white-space: nowrap;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
+    .badge { padding: 4px 10px; border-radius: 4px; font-size: 0.65rem; font-weight: 700; white-space: nowrap; letter-spacing: 0.5px; text-transform: uppercase; }
     .badge.APROBAR { background: #16a34a; color: #fff; }
     .badge.REVISAR  { background: #d97706; color: #fff; }
     .badge.RECHAZAR { background: #dc2626; color: #fff; }
 
-    /* Score bar principal */
     .score-bar-wrap { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
     .score-bar { flex: 1; height: 8px; background: #D8D6D0; border-radius: 4px; overflow: hidden; }
     .score-fill { height: 100%; border-radius: 4px; }
@@ -311,16 +200,8 @@
     .score-fill.low  { background: #dc2626; }
     .score-num { font-size: 1rem; font-weight: 800; min-width: 44px; text-align: right; letter-spacing: -0.5px; }
 
-    /* Breakdown */
     .breakdown { margin-bottom: 18px; }
-    .breakdown-title {
-      font-size: 0.65rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 10px;
-      font-weight: 600;
-    }
+    .breakdown-title { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; font-weight: 600; }
     .breakdown-row { display: flex; align-items: center; gap: 12px; margin-bottom: 7px; }
     .breakdown-label { font-size: 0.75rem; color: var(--muted); min-width: 90px; }
     .breakdown-bar { flex: 1; height: 6px; background: #D8D6D0; border-radius: 3px; overflow: hidden; }
@@ -330,13 +211,10 @@
     .breakdown-fill.low  { background: #dc2626; }
     .breakdown-num { font-size: 0.75rem; font-weight: 700; min-width: 20px; text-align: right; color: var(--text); }
 
-    /* Detail */
     .detail { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
     .detail.open { display: block; }
-
     .resumen { font-size: 0.88rem; color: var(--muted); line-height: 1.6; margin-bottom: 18px; }
 
-    /* Tags — sin borde */
     .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
     .tag { font-size: 0.72rem; padding: 4px 12px; border-radius: 6px; font-weight: 500; }
     .tag.strength { background: #f0fdf4; color: #15803d; }
@@ -344,84 +222,167 @@
     [data-theme="dark"] .tag.strength { background: #052e16; color: #4ade80; }
     [data-theme="dark"] .tag.flag     { background: #4c0519; color: #fb7185; }
 
-    /* Info grid */
     .info-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 20px;
-      padding: 16px;
-      background: var(--bg);
-      border-radius: 10px;
-      font-size: 0.82rem;
-      color: var(--muted);
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;
+      padding: 16px; background: var(--bg); border-radius: 10px; font-size: 0.82rem; color: var(--muted);
     }
     .info-item span { font-weight: 600; color: var(--text); }
 
-    /* Actions */
     .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
-
-    .action-btn {
-      padding: 8px 18px;
-      border-radius: 8px;
-      border: none;
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      font-family: inherit;
-      transition: opacity 0.15s;
-    }
+    .action-btn { padding: 8px 18px; border-radius: 8px; border: none; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: opacity 0.15s; }
     .action-btn:hover { opacity: 0.85; }
     .btn-aprobar  { background: #16a34a; color: white; }
     .btn-rechazar { background: #dc2626; color: white; }
 
-    .estado-select {
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--input-bg);
-      color: var(--text);
-      font-size: 0.8rem;
-      cursor: pointer;
-      font-family: inherit;
-    }
+    .estado-select { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 0.8rem; cursor: pointer; font-family: inherit; }
 
-    /* Notes */
     .notes-label { font-size: 0.68rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; }
     .notes-area {
-      width: 100%;
-      padding: 12px 14px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: var(--bg);
-      color: var(--text);
-      font-size: 0.84rem;
-      resize: none;
-      min-height: 80px;
-      font-family: inherit;
-      margin-top: 8px;
-      line-height: 1.6;
+      width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--text); font-size: 0.84rem; resize: none;
+      min-height: 80px; font-family: inherit; margin-top: 8px; line-height: 1.6;
       transition: border-color 0.15s, background 0.15s;
     }
     .notes-area:focus { outline: none; border-color: var(--text); background: var(--surface); }
 
     .save-nota-btn {
-      margin-top: 8px;
-      padding: 7px 16px;
-      border-radius: 8px;
-      background: var(--text);
-      color: var(--bg);
-      border: none;
-      font-size: 0.78rem;
-      font-weight: 600;
-      cursor: pointer;
-      font-family: inherit;
-      transition: opacity 0.15s;
+      margin-top: 8px; padding: 7px 16px; border-radius: 8px; background: var(--text);
+      color: var(--bg); border: none; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: opacity 0.15s;
     }
     .save-nota-btn:hover { opacity: 0.8; }
 
     .loading { text-align: center; padding: 60px; color: var(--muted); font-size: 0.9rem; }
     .empty { text-align: center; padding: 40px; color: var(--muted); font-size: 0.875rem; }
+
+    /* ============================================================
+       PIPELINE TAB STYLES
+    ============================================================ */
+    .pipeline-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .pipeline-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .pipeline-subtitle {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+    .pipeline-badge {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .pipeline-badge span { color: var(--text); font-weight: 700; }
+
+    /* Pipeline KPI cards */
+    .pipeline-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 700px) { .pipeline-kpis { grid-template-columns: repeat(2, 1fr); } }
+
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+    .kpi-value { font-size: 2rem; font-weight: 800; letter-spacing: -1.5px; line-height: 1; color: var(--text); }
+    .kpi-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 6px; font-weight: 500; }
+    .kpi-sub { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
+    .kpi-value.green { color: #16a34a; }
+    .kpi-value.amber { color: #d97706; }
+    .kpi-value.accent { color: var(--accent); }
+
+    /* Insight cards */
+    .insights-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 700px) { .insights-row { grid-template-columns: 1fr; } }
+
+    .insight-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .insight-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 1px; }
+    .insight-text { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+    .insight-text strong { color: var(--text); font-weight: 700; display: block; margin-bottom: 2px; }
+    .insight-card.warn { border-color: #fca5a5; background: #fff5f5; }
+    .insight-card.ok   { border-color: #86efac; background: #f0fdf4; }
+    .insight-card.info { border-color: #fde68a; background: #fffbeb; }
+    [data-theme="dark"] .insight-card.warn { border-color: #7f1d1d; background: #1c0808; }
+    [data-theme="dark"] .insight-card.ok   { border-color: #14532d; background: #071a0f; }
+    [data-theme="dark"] .insight-card.info { border-color: #713f12; background: #1c1200; }
+
+    /* Charts grid */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 700px) { .charts-grid { grid-template-columns: 1fr; } }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 24px;
+    }
+    .chart-card.full-width { grid-column: 1 / -1; }
+
+    .chart-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+      letter-spacing: -0.2px;
+    }
+    .chart-subtitle {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+    .chart-wrap { position: relative; }
+
+    /* Legend for donut charts */
+    .donut-layout { display: flex; gap: 20px; align-items: center; }
+    .donut-wrap { flex-shrink: 0; width: 160px; height: 160px; }
+    .donut-legend { flex: 1; }
+    .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; font-size: 0.75rem; color: var(--muted); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .legend-val { margin-left: auto; font-weight: 700; color: var(--text); font-size: 0.78rem; }
+    .legend-pct { color: var(--muted); font-size: 0.7rem; margin-left: 4px; }
+
+    /* City legend */
+    .city-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 0.65rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; margin-right: 6px; }
+    .city-tag.priority { background: #dcfce7; color: #15803d; }
+    .city-tag.warning  { background: #fee2e2; color: #b91c1c; }
+    .city-tag.neutral  { background: #f5f5f0; color: var(--muted); }
+    [data-theme="dark"] .city-tag.priority { background: #052e16; color: #4ade80; }
+    [data-theme="dark"] .city-tag.warning  { background: #4c0519; color: #fb7185; }
+    [data-theme="dark"] .city-tag.neutral  { background: #252520; color: var(--muted); }
 
     @media (max-width: 600px) {
       .card-right { flex-direction: column; align-items: flex-end; }
@@ -441,55 +402,203 @@
     <div class="logo-divider"></div>
     <div class="logo-sub">Panel de Franquicias</div>
   </div>
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('ranking', this)">Ranking</button>
+    <button class="tab-btn" onclick="switchTab('pipeline', this)">Pipeline</button>
+  </div>
   <div class="header-right">
     <button class="dark-toggle" onclick="toggleDark()">○ Tema</button>
   </div>
 </header>
 
-<div class="container">
+<!-- ====== TAB: RANKING ====== -->
+<div id="tab-ranking" class="tab-panel active">
+  <div class="container">
 
-  <div class="umbral-banner">
-    <div class="umbral-row">
-      <span class="umbral-title">Criterios</span>
-      <div class="criterio">Capacidad financiera <span>30%</span></div>
-      <div class="criterio">Perfil comercial <span>25%</span></div>
-      <div class="criterio">Disponibilidad operativa <span>20%</span></div>
-      <div class="criterio">Motivación y fit <span>15%</span></div>
-      <div class="criterio">Ciudad / Mercado <span>10%</span></div>
+    <div class="umbral-banner">
+      <div class="umbral-row">
+        <span class="umbral-title">Criterios</span>
+        <div class="criterio">Capacidad financiera <span>30%</span></div>
+        <div class="criterio">Perfil comercial <span>25%</span></div>
+        <div class="criterio">Disponibilidad operativa <span>20%</span></div>
+        <div class="criterio">Motivación y fit <span>15%</span></div>
+        <div class="criterio">Ciudad / Mercado <span>10%</span></div>
+      </div>
+      <div class="umbral-row">
+        <div class="umbral-min">Puntaje mínimo para avanzar: <span>6.5 / 10</span></div>
+      </div>
     </div>
-    <div class="umbral-row">
-      <div class="umbral-min">Puntaje mínimo para avanzar: <span>6.5 / 10</span></div>
+
+    <div class="stats" id="stats">
+      <div class="stat-card"><div class="label">Total</div><div class="value neutral" id="total">—</div></div>
+      <div class="stat-card"><div class="label">Aprobar</div><div class="value green" id="aprobados">—</div></div>
+      <div class="stat-card"><div class="label">Revisar</div><div class="value yellow" id="revision">—</div></div>
+      <div class="stat-card"><div class="label">Rechazar</div><div class="value red" id="rechazados">—</div></div>
     </div>
-  </div>
 
-  <div class="stats" id="stats">
-    <div class="stat-card"><div class="label">Total</div><div class="value neutral" id="total">—</div></div>
-    <div class="stat-card"><div class="label">Aprobar</div><div class="value green" id="aprobados">—</div></div>
-    <div class="stat-card"><div class="label">Revisar</div><div class="value yellow" id="revision">—</div></div>
-    <div class="stat-card"><div class="label">Rechazar</div><div class="value red" id="rechazados">—</div></div>
-  </div>
-
-  <div class="toolbar">
-    <input class="search-input" type="text" placeholder="Buscar por nombre o ciudad..." oninput="filterCards()" id="searchInput" />
-    <div class="filter-group">
-      <button class="filter-btn active" onclick="setFilter('todos', this)">Todos</button>
-      <button class="filter-btn" onclick="setFilter('APROBAR', this)">Aprobar</button>
-      <button class="filter-btn" onclick="setFilter('REVISAR', this)">Revisar</button>
-      <button class="filter-btn" onclick="setFilter('RECHAZAR', this)">Rechazar</button>
+    <div class="toolbar">
+      <input class="search-input" type="text" placeholder="Buscar por nombre o ciudad..." oninput="filterCards()" id="searchInput" />
+      <div class="filter-group">
+        <button class="filter-btn active" onclick="setFilter('todos', this)">Todos</button>
+        <button class="filter-btn" onclick="setFilter('APROBAR', this)">Aprobar</button>
+        <button class="filter-btn" onclick="setFilter('REVISAR', this)">Revisar</button>
+        <button class="filter-btn" onclick="setFilter('RECHAZAR', this)">Rechazar</button>
+      </div>
+      <button class="export-btn" onclick="exportCSV()">⬇ Exportar Excel</button>
+      <button class="refresh-btn" id="refreshBtn" onclick="refreshRanking()">↻ Actualizar evaluación</button>
     </div>
-    <button class="export-btn" onclick="exportCSV()">⬇ Exportar Excel</button>
-    <button class="refresh-btn" id="refreshBtn" onclick="refreshRanking()">↻ Actualizar evaluación</button>
+
+    <div class="section-title" id="resultCount"></div>
+    <div id="lista"><div class="loading">Cargando evaluaciones...</div></div>
+
   </div>
+</div>
 
-  <div class="section-title" id="resultCount"></div>
-  <div id="lista"><div class="loading">Cargando evaluaciones...</div></div>
+<!-- ====== TAB: PIPELINE ====== -->
+<div id="tab-pipeline" class="tab-panel">
+  <div class="container">
 
+    <div class="pipeline-header">
+      <div>
+        <div class="pipeline-title">Inteligencia de Pipeline</div>
+        <div class="pipeline-subtitle">Análisis de interesados en franquicia Guchini · Datos del formulario oficial</div>
+      </div>
+      <div class="pipeline-badge">Total interesados: <span>131</span></div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="pipeline-kpis">
+      <div class="kpi-card">
+        <div class="kpi-value neutral">131</div>
+        <div class="kpi-label">Total interesados</div>
+        <div class="kpi-sub">Formulario activo</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value green">69%</div>
+        <div class="kpi-label">Operan personalmente</div>
+        <div class="kpi-sub">90 de 131 — modelo preferido Guchini</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value accent">Producto</div>
+        <div class="kpi-label">Driver #1 de atracción</div>
+        <div class="kpi-sub">43 menciones · calidad del sandwich</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value amber">Mendoza</div>
+        <div class="kpi-label">Ciudad con más leads</div>
+        <div class="kpi-sub">42 leads — mercado ya cubierto ⚠️</div>
+      </div>
+    </div>
+
+    <!-- Insights -->
+    <div class="insights-row">
+      <div class="insight-card warn">
+        <div class="insight-icon">⚠️</div>
+        <div class="insight-text">
+          <strong>Mendoza está sobrerepresentada</strong>
+          42 leads (32%) vienen de donde ya opera Casa Central. Hay que redirigir el marketing hacia ciudades prioritarias.
+        </div>
+      </div>
+      <div class="insight-card ok">
+        <div class="insight-icon">✅</div>
+        <div class="insight-text">
+          <strong>Perfil operativo alineado</strong>
+          El 69% planea operar personalmente. El modelo de Guchini requiere presencia activa del franquiciado — muy buena señal.
+        </div>
+      </div>
+      <div class="insight-card info">
+        <div class="insight-icon">📍</div>
+        <div class="insight-text">
+          <strong>CABA y Bahía Blanca necesitan push</strong>
+          Ciudades prioritarias Año 1 con muy pocos leads. Córdoba y Buenos Aires muestran interés real (39 leads combinados).
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts row 1 -->
+    <div class="charts-grid">
+      <div class="chart-card full-width">
+        <div class="chart-title">Distribución geográfica de interesados</div>
+        <div class="chart-subtitle">
+          Top ciudades por cantidad de leads ·
+          <span class="city-tag priority">● Prioritaria Año 1</span>
+          <span class="city-tag warning">● Ya cubierta</span>
+          <span class="city-tag neutral">● Potencial</span>
+        </div>
+        <div class="chart-wrap" style="height: 320px">
+          <canvas id="chartCiudades"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts row 2 -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Modalidad de operación</div>
+        <div class="chart-subtitle">¿Cómo planean manejar el local? · 131 respuestas</div>
+        <div class="donut-layout">
+          <div class="donut-wrap"><canvas id="chartOperacion"></canvas></div>
+          <div class="donut-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div>Operará personalmente<span class="legend-val">90</span><span class="legend-pct">69%</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div>Gerente / encargado<span class="legend-val">29</span><span class="legend-pct">22%</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#9B9890"></div>No especifica<span class="legend-val">10</span><span class="legend-pct">8%</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#1C1B18"></div>Sociedad / familia<span class="legend-val">2</span><span class="legend-pct">2%</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">¿Única fuente de ingreso?</div>
+        <div class="chart-subtitle">Situación financiera actual · 137 respuestas</div>
+        <div class="donut-layout">
+          <div class="donut-wrap"><canvas id="chartIngreso"></canvas></div>
+          <div class="donut-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div>Tiene otras fuentes<span class="legend-val">100</span><span class="legend-pct">73%</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div>Será única fuente<span class="legend-val">22</span><span class="legend-pct">16%</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#9B9890"></div>No especifica<span class="legend-val">13</span><span class="legend-pct">9%</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div>Principal, no única<span class="legend-val">2</span><span class="legend-pct">1%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts row 3 -->
+    <div class="charts-grid">
+      <div class="chart-card full-width">
+        <div class="chart-title">Principales motivos de atracción hacia la franquicia</div>
+        <div class="chart-subtitle">Análisis de respuestas abiertas · menciones totales</div>
+        <div class="chart-wrap" style="height: 200px">
+          <canvas id="chartMotivos"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <script>
   let allData = [];
   let currentFilter = 'todos';
+  let chartsInitialized = false;
 
+  /* ==============================
+     TAB SWITCHING
+  ============================== */
+  function switchTab(tab, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    btn.classList.add('active');
+
+    if (tab === 'pipeline' && !chartsInitialized) {
+      chartsInitialized = true;
+      setTimeout(initCharts, 50);
+    }
+  }
+
+  /* ==============================
+     RANKING
+  ============================== */
   async function loadRanking() {
     const res = await fetch('/api/ranking');
     allData = await res.json();
@@ -508,9 +617,7 @@
     btn.textContent = '↻ Recalcular';
   }
 
-  function exportCSV() {
-    window.open('/api/export/csv', '_blank');
-  }
+  function exportCSV() { window.open('/api/export/csv', '_blank'); }
 
   function setFilter(filter, btn) {
     currentFilter = filter;
@@ -522,31 +629,16 @@
   function filterCards() {
     const query = document.getElementById('searchInput').value.toLowerCase();
     let filtered = allData;
-
-    if (currentFilter !== 'todos') {
-      filtered = filtered.filter(r => r.evaluacion.recomendacion === currentFilter);
-    }
-
-    if (query) {
-      filtered = filtered.filter(r =>
-        r.nombre.toLowerCase().includes(query) ||
-        r.ciudad.toLowerCase().includes(query)
-      );
-    }
-
+    if (currentFilter !== 'todos') filtered = filtered.filter(r => r.evaluacion.recomendacion === currentFilter);
+    if (query) filtered = filtered.filter(r => r.nombre.toLowerCase().includes(query) || r.ciudad.toLowerCase().includes(query));
     renderFiltered(filtered);
   }
 
   function renderRanking(data) {
-    const aprobados = data.filter(d => d.evaluacion.recomendacion === 'APROBAR').length;
-    const revision = data.filter(d => d.evaluacion.recomendacion === 'REVISAR').length;
-    const rechazados = data.filter(d => d.evaluacion.recomendacion === 'RECHAZAR').length;
-
     document.getElementById('total').textContent = data.length;
-    document.getElementById('aprobados').textContent = aprobados;
-    document.getElementById('revision').textContent = revision;
-    document.getElementById('rechazados').textContent = rechazados;
-
+    document.getElementById('aprobados').textContent = data.filter(d => d.evaluacion.recomendacion === 'APROBAR').length;
+    document.getElementById('revision').textContent = data.filter(d => d.evaluacion.recomendacion === 'REVISAR').length;
+    document.getElementById('rechazados').textContent = data.filter(d => d.evaluacion.recomendacion === 'RECHAZAR').length;
     filterCards();
   }
 
@@ -659,7 +751,6 @@
     const select = document.getElementById(`estado-${id}`);
     if (select) select.value = estado;
     await updateEstado(id, estado);
-
     const r = allData.find(x => x.id === id);
     if (r) r.estado = estado;
   }
@@ -687,11 +778,200 @@
     if (btn) { btn.textContent = '✓ Guardado'; setTimeout(() => btn.textContent = 'Guardar nota', 1500); }
   }
 
+  /* ==============================
+     DARK MODE
+  ============================== */
   function toggleDark() {
     const html = document.documentElement;
     const isDark = html.getAttribute('data-theme') === 'dark';
     html.setAttribute('data-theme', isDark ? 'light' : 'dark');
-    document.querySelector('.dark-toggle').textContent = isDark ? '🌙 Modo oscuro' : '☀️ Modo claro';
+    document.querySelector('.dark-toggle').textContent = isDark ? '○ Tema' : '○ Tema';
+    if (chartsInitialized) {
+      setTimeout(() => {
+        destroyCharts();
+        initCharts();
+      }, 100);
+    }
+  }
+
+  /* ==============================
+     CHARTS
+  ============================== */
+  let chartInstances = {};
+
+  function destroyCharts() {
+    Object.values(chartInstances).forEach(c => c.destroy());
+    chartInstances = {};
+  }
+
+  function getTextColor() {
+    return getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#1C1B18';
+  }
+  function getMutedColor() {
+    return getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#9B9890';
+  }
+  function getBorderColor() {
+    return getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#E8E6E0';
+  }
+
+  function initCharts() {
+    const textColor = getTextColor();
+    const mutedColor = getMutedColor();
+    const borderColor = getBorderColor();
+
+    Chart.defaults.font.family = 'Inter, -apple-system, sans-serif';
+    Chart.defaults.color = mutedColor;
+
+    // ---- CIUDADES (horizontal bar) ----
+    const ciudadesData = {
+      labels: ['Mendoza','Bs. Aires','Córdoba','San Juan','Internacional','Neuquén','Tucumán','Santa Fe','Salta','San Luis','Rosario','Mar del Plata','Catamarca','Corrientes','La Rioja','CABA','Bahía Blanca'],
+      values: [42, 20, 19, 15, 10, 9, 8, 6, 5, 3, 3, 2, 2, 2, 2, 1, 1],
+    };
+
+    // Priority: Córdoba(2), Mar del Plata(11), CABA(15), Bahía Blanca(16) → green
+    // Warning: Mendoza(0) → red
+    // Others → muted gray or amber
+    const priorityCities = new Set(['Córdoba', 'Mar del Plata', 'CABA', 'Bahía Blanca']);
+    const warningCities  = new Set(['Mendoza']);
+    const potentialCities = new Set(['Bs. Aires', 'Neuquén', 'San Juan', 'Tucumán']);
+
+    const ciudadesColors = ciudadesData.labels.map(l => {
+      if (warningCities.has(l))  return '#dc2626';
+      if (priorityCities.has(l)) return '#16a34a';
+      if (potentialCities.has(l)) return '#d97706';
+      return '#D8D6D0';
+    });
+
+    const ctxCiudades = document.getElementById('chartCiudades').getContext('2d');
+    chartInstances.ciudades = new Chart(ctxCiudades, {
+      type: 'bar',
+      data: {
+        labels: ciudadesData.labels,
+        datasets: [{
+          data: ciudadesData.values,
+          backgroundColor: ciudadesColors,
+          borderRadius: 4,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.parsed.x} leads (${Math.round(ctx.parsed.x/131*100)}%)`
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: borderColor },
+            ticks: { color: mutedColor, font: { size: 11 } },
+          },
+          y: {
+            grid: { display: false },
+            ticks: { color: textColor, font: { size: 11, weight: '500' } },
+          }
+        }
+      }
+    });
+
+    // ---- OPERACIÓN (doughnut) ----
+    const ctxOp = document.getElementById('chartOperacion').getContext('2d');
+    chartInstances.operacion = new Chart(ctxOp, {
+      type: 'doughnut',
+      data: {
+        labels: ['Personalmente', 'Gerente', 'No especifica', 'Sociedad'],
+        datasets: [{
+          data: [90, 29, 10, 2],
+          backgroundColor: ['#16a34a', '#d97706', '#9B9890', '#1C1B18'],
+          borderWidth: 0,
+          hoverOffset: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '68%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.parsed} leads (${Math.round(ctx.parsed/131*100)}%)`
+            }
+          }
+        }
+      }
+    });
+
+    // ---- INGRESO (doughnut) ----
+    const ctxIng = document.getElementById('chartIngreso').getContext('2d');
+    chartInstances.ingreso = new Chart(ctxIng, {
+      type: 'doughnut',
+      data: {
+        labels: ['Otras fuentes', 'Única fuente', 'No especifica', 'Principal, no única'],
+        datasets: [{
+          data: [100, 22, 13, 2],
+          backgroundColor: ['#16a34a', '#dc2626', '#9B9890', '#d97706'],
+          borderWidth: 0,
+          hoverOffset: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '68%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.parsed} interesados (${Math.round(ctx.parsed/137*100)}%)`
+            }
+          }
+        }
+      }
+    });
+
+    // ---- MOTIVOS (horizontal bar) ----
+    const ctxMot = document.getElementById('chartMotivos').getContext('2d');
+    chartInstances.motivos = new Chart(ctxMot, {
+      type: 'bar',
+      data: {
+        labels: ['Producto / calidad', 'Marca / marketing', 'Modelo de negocio', 'Recomendación / redes', 'Atención / experiencia'],
+        datasets: [{
+          data: [43, 39, 22, 13, 5],
+          backgroundColor: ['#C8960C', '#d97706', '#D8B96A', '#E8D4A0', '#D8D6D0'],
+          borderRadius: 4,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.parsed.x} menciones`
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: borderColor },
+            ticks: { color: mutedColor, font: { size: 11 } },
+          },
+          y: {
+            grid: { display: false },
+            ticks: { color: textColor, font: { size: 11, weight: '500' } },
+          }
+        }
+      }
+    });
   }
 
   loadRanking();
