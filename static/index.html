@@ -608,13 +608,61 @@
   async function refreshRanking() {
     const btn = document.getElementById('refreshBtn');
     btn.disabled = true;
-    btn.textContent = 'Evaluando...';
-    document.getElementById('lista').innerHTML = '<div class="loading">Evaluando puntajes con IA, puede tomar 20-30 segundos...</div>';
-    const res = await fetch('/api/ranking/refresh', { method: 'POST' });
-    allData = await res.json();
-    renderRanking(allData);
-    btn.disabled = false;
-    btn.textContent = '↻ Recalcular';
+    btn.textContent = 'Iniciando...';
+
+    // Kick off background evaluation
+    const startRes = await fetch('/api/ranking/refresh', { method: 'POST' });
+    const startData = await startRes.json();
+
+    if (startData.status === 'no_new_candidates') {
+      btn.disabled = false;
+      btn.textContent = '↻ Actualizar evaluación';
+      alert('No hay candidatos nuevos. El ranking ya está actualizado.');
+      return;
+    }
+
+    if (startData.status === 'already_running') {
+      // Fall through to polling below
+    }
+
+    // Poll /api/ranking/status until done
+    const lista = document.getElementById('lista');
+    const total = startData.total || startData.new || 0;
+
+    async function pollStatus() {
+      const res = await fetch('/api/ranking/status');
+      const s = await res.json();
+      const done = s.done || 0;
+      const tot = s.total || total || 1;
+      const pct = Math.round((done / tot) * 100);
+
+      lista.innerHTML = `
+        <div class="loading" style="padding:40px 0">
+          <div style="font-size:1rem;font-weight:600;margin-bottom:12px">
+            Evaluando con IA — ${done} / ${tot} candidatos
+          </div>
+          <div style="background:var(--border);border-radius:99px;height:8px;width:320px;margin:0 auto;overflow:hidden">
+            <div style="background:var(--accent);height:100%;width:${pct}%;border-radius:99px;transition:width 0.4s"></div>
+          </div>
+          <div style="font-size:0.8rem;color:var(--muted);margin-top:10px">${pct}% completado</div>
+        </div>`;
+      btn.textContent = `Evaluando ${pct}%...`;
+
+      if (s.running) {
+        setTimeout(pollStatus, 1500);
+      } else {
+        // Done — load results
+        const rankRes = await fetch('/api/ranking');
+        allData = await rankRes.json();
+        renderRanking(allData);
+        btn.disabled = false;
+        btn.textContent = '↻ Actualizar evaluación';
+      }
+    }
+
+    // Show initial loading state
+    lista.innerHTML = `<div class="loading" style="padding:40px 0">Conectando con la IA...</div>`;
+    setTimeout(pollStatus, 800);
   }
 
   function exportCSV() { window.open('/api/export/csv', '_blank'); }

@@ -102,10 +102,11 @@ def _pre_score(c, exp_raw):
     return s
 
 
-def load_candidates(top_n=40):
+def load_candidates(top_n=None):
     """
-    Descarga el Google Sheet, parsea todos los candidatos, pre-filtra y devuelve
-    los top_n más prometedores ordenados por pre-screening score.
+    Descarga el Google Sheet, parsea todos los candidatos y los devuelve
+    ordenados por pre-screening score (sin descartar ninguno).
+    top_n: si se especifica, limita la cantidad retornada; None = todos.
     """
     r = requests.get(SHEET_URL, allow_redirects=True, timeout=30)
     r.raise_for_status()
@@ -159,12 +160,12 @@ def load_candidates(top_n=40):
     # Ordenar por pre-score descendente → los mejores primero
     candidatos.sort(key=lambda x: x["_pre_score"], reverse=True)
 
-    # Tomar los top_n
-    top = candidatos[:top_n]
+    # Tomar top_n si se especificó, sino todos
+    top = candidatos[:top_n] if top_n is not None else candidatos
 
     # Limpiar campos internos antes de devolver
     for c in top:
         c.pop("_pre_score", None)
 
-    print(f"[data_loader] {len(candidatos)} candidatos procesados → top {len(top)} seleccionados para evaluación")
+    print(f"[data_loader] {len(candidatos)} candidatos procesados → {len(top)} listos para evaluación")
     return top

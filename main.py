@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 from fastapi import Body
 from dotenv import load_dotenv
+import asyncio
 import json
 import os
 import io
@@ -12,40 +13,32 @@ from openpyxl.utils import get_column_letter
 
 load_dotenv()
 
-from scorer import evaluar_todos
+from scorer import evaluar_todos_async
 from data_loader import load_candidates
 
 app = FastAPI()
 
 ESTADOS_FILE = "estados.json"
-MAX_CANDIDATOS = int(os.environ.get("MAX_CANDIDATOS", "40"))
 
+# ─── Evaluation progress state ────────────────────────────────────────────────
+eval_status = {
+    "running": False,
+    "done": 0,
+    "total": 0,
+    "error": None,
+}
+
+
+# ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def get_aplicantes():
     """Carga candidatos desde Google Sheet (con fallback a mock_data.json)."""
     try:
-        return load_candidates(top_n=MAX_CANDIDATOS)
+        return load_candidates()   # all candidates, sorted by pre-score
     except Exception as e:
         print(f"[data_loader] Error cargando desde Google Sheets: {e}. Usando mock_data.json.")
         with open("mock_data.json", encoding="utf-8") as f:
             return json.load(f)
-
-
-@app.on_event("startup")
-async def startup_event():
-    import asyncio
-    asyncio.create_task(evaluar_en_background())
-
-async def evaluar_en_background():
-    import asyncio
-    if not os.path.exists("resultados.json"):
-        print("Evaluando aplicantes en background...")
-        loop = asyncio.get_event_loop()
-        aplicantes = await loop.run_in_executor(None, get_aplicantes)
-        resultados = await loop.run_in_executor(None, evaluar_todos, aplicantes)
-        with open("resultados.json", "w", encoding="utf-8") as f:
-            json.dump(resultados, f, ensure_ascii=False, indent=2)
-        print("Evaluación completa.")
 
 
 def load_estados():
@@ -73,6 +66,80 @@ def merge_estados(resultados):
     return resultados
 
 
+# ─── Smart-cache helpers ───────────────────────────────────────────────────────
+
+def _emails_in_cache() -> set:
+    """Returns the set of emails that already have a result in resultados.json."""
+    if not os.path.exists("resultados.json"):
+        return set()
+    with open("resultados.json", encoding="utf-8") as f:
+        cached = json.load(f)
+    return {r.get("email", "").lower().strip() for r in cached if r.get("email")}
+
+
+def _load_cache() -> list:
+    if not os.path.exists("resultados.json"):
+        return []
+    with open("resultados.json", encoding="utf-8") as f:
+        return json.load(f)
+
+
+# ─── Background evaluation task ───────────────────────────────────────────────
+
+async def run_evaluation_task(aplicantes_nuevos: list, cached_resultados: list):
+    """
+    Evaluates only the new applicants (not already in cache) and merges results.
+    Updates eval_status as it goes.
+    """
+    global eval_status
+    eval_status["running"] = True
+    eval_status["done"] = 0
+    eval_status["total"] = len(aplicantes_nuevos)
+    eval_status["error"] = None
+
+    def on_progress():
+        eval_status["done"] += 1
+
+    try:
+        nuevos_resultados = await evaluar_todos_async(aplicantes_nuevos, on_progress=on_progress)
+
+        # Merge new results with cached ones
+        all_resultados = cached_resultados + nuevos_resultados
+        all_resultados.sort(key=lambda x: x["evaluacion"]["score"], reverse=True)
+
+        with open("resultados.json", "w", encoding="utf-8") as f:
+            json.dump(all_resultados, f, ensure_ascii=False, indent=2)
+
+        print(f"[scorer] Evaluación completa: {len(nuevos_resultados)} nuevos + {len(cached_resultados)} en caché = {len(all_resultados)} total")
+    except Exception as e:
+        eval_status["error"] = str(e)
+        print(f"[scorer] Error en evaluación: {e}")
+    finally:
+        eval_status["running"] = False
+
+
+# ─── Startup ──────────────────────────────────────────────────────────────────
+
+@app.on_event("startup")
+async def startup_event():
+    if not os.path.exists("resultados.json"):
+        print("[startup] No hay resultados en caché — evaluando en background...")
+        aplicantes = await asyncio.get_event_loop().run_in_executor(None, get_aplicantes)
+        asyncio.create_task(run_evaluation_task(aplicantes, []))
+
+
+# ─── API endpoints ─────────────────────────────────────────────────────────────
+
+@app.get("/api/ranking/status")
+def get_eval_status():
+    return {
+        "running": eval_status["running"],
+        "done": eval_status["done"],
+        "total": eval_status["total"],
+        "error": eval_status["error"],
+    }
+
+
 @app.get("/api/ranking")
 def get_ranking():
     if os.path.exists("resultados.json"):
@@ -80,20 +147,69 @@ def get_ranking():
             resultados = json.load(f)
         return merge_estados(resultados)
 
+    # Fallback sync evaluation (unlikely path — startup covers this)
+    import asyncio as _asyncio
     aplicantes = get_aplicantes()
-    resultados = evaluar_todos(aplicantes)
-
+    resultados = _asyncio.run(evaluar_todos_async(aplicantes))
     with open("resultados.json", "w", encoding="utf-8") as f:
         json.dump(resultados, f, ensure_ascii=False, indent=2)
-
     return merge_estados(resultados)
 
 
 @app.post("/api/ranking/refresh")
-def refresh_ranking():
+async def refresh_ranking():
+    """
+    Kicks off a background re-evaluation.
+    Only evaluates candidates whose email isn't in the current cache.
+    Returns immediately with status info.
+    """
+    global eval_status
+
+    if eval_status["running"]:
+        return {"status": "already_running", "done": eval_status["done"], "total": eval_status["total"]}
+
+    loop = asyncio.get_event_loop()
+    aplicantes = await loop.run_in_executor(None, get_aplicantes)
+    cached_emails = _emails_in_cache()
+    cached_resultados = _load_cache()
+
+    aplicantes_nuevos = [
+        a for a in aplicantes
+        if a.get("email", "").lower().strip() not in cached_emails
+    ]
+
+    if not aplicantes_nuevos:
+        # Nothing new — return cached results immediately
+        with open("resultados.json", encoding="utf-8") as f:
+            resultados = json.load(f)
+        return {"status": "no_new_candidates", "total_cached": len(resultados)}
+
+    print(f"[refresh] {len(aplicantes_nuevos)} nuevos candidatos a evaluar (ya en caché: {len(cached_resultados)})")
+    asyncio.create_task(run_evaluation_task(aplicantes_nuevos, cached_resultados))
+
+    return {
+        "status": "started",
+        "new": len(aplicantes_nuevos),
+        "cached": len(cached_resultados),
+    }
+
+
+@app.post("/api/ranking/refresh-full")
+async def refresh_full_ranking():
+    """Forces a full re-evaluation of ALL candidates (ignores cache)."""
+    global eval_status
+
+    if eval_status["running"]:
+        return {"status": "already_running"}
+
     if os.path.exists("resultados.json"):
         os.remove("resultados.json")
-    return get_ranking()
+
+    loop = asyncio.get_event_loop()
+    aplicantes = await loop.run_in_executor(None, get_aplicantes)
+    asyncio.create_task(run_evaluation_task(aplicantes, []))
+
+    return {"status": "started", "total": len(aplicantes)}
 
 
 @app.post("/api/aplicante/{aplicante_id}/estado")

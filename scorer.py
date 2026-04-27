@@ -1,9 +1,10 @@
+import asyncio
 import json
 import os
-from groq import Groq
+from anthropic import AsyncAnthropic
 from enricher import enriquecer_aplicante, formatear_para_scorer
 
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+client = AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 CRITERIOS_GUCHINI = """
 Sos el evaluador de franquicias de Guchini, la sandwichería viral de Mendoza, Argentina.
@@ -59,8 +60,17 @@ Devolvé SIEMPRE un JSON con este formato exacto, sin texto adicional:
 }
 """
 
-def evaluar_aplicante(aplicante: dict) -> dict:
-    # Enriquecer con datos públicos de internet
+FALLBACK_EVALUACION = {
+    "score": 5.0,
+    "breakdown": {"capital": 5, "perfil_comercial": 5, "disponibilidad": 5, "motivacion": 5, "ciudad": 5},
+    "resumen": "No se pudo evaluar automáticamente. Requiere revisión manual.",
+    "fortalezas": [],
+    "red_flags": ["Error en evaluación automática"],
+    "recomendacion": "REVISAR",
+}
+
+
+async def evaluar_aplicante_async(aplicante: dict) -> dict:
     enrichment = enriquecer_aplicante(aplicante)
     info_publica = formatear_para_scorer(enrichment)
 
@@ -81,13 +91,13 @@ Si encontraste inconsistencias entre lo declarado y lo encontrado, bajá el scor
 Devolvé solo el JSON, sin texto adicional, sin bloques de código.
 """
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+    message = await client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.2,
     )
 
-    raw = response.choices[0].message.content.strip()
+    raw = message.content[0].text.strip()
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):
@@ -96,14 +106,32 @@ Devolvé solo el JSON, sin texto adicional, sin bloques de código.
     return json.loads(raw.strip())
 
 
-def evaluar_todos(aplicantes: list) -> list:
+async def evaluar_todos_async(aplicantes: list, on_progress=None) -> list:
+    semaphore = asyncio.Semaphore(5)
     resultados = []
-    for aplicante in aplicantes:
-        print(f"Evaluando {aplicante['nombre']}...")
-        evaluacion = evaluar_aplicante(aplicante)
-        resultados.append({**aplicante, "evaluacion": evaluacion})
+
+    async def eval_one(aplicante):
+        async with semaphore:
+            try:
+                evaluacion = await evaluar_aplicante_async(aplicante)
+            except Exception as e:
+                print(f"[scorer] Error evaluando {aplicante.get('nombre', '?')}: {e}")
+                evaluacion = FALLBACK_EVALUACION.copy()
+            resultado = {**aplicante, "evaluacion": evaluacion}
+            if on_progress:
+                on_progress()
+            return resultado
+
+    tasks = [eval_one(a) for a in aplicantes]
+    resultados = await asyncio.gather(*tasks)
+    resultados = list(resultados)
     resultados.sort(key=lambda x: x["evaluacion"]["score"], reverse=True)
     return resultados
+
+
+# Sync wrapper for backward compatibility (e.g. CLI testing)
+def evaluar_todos(aplicantes: list) -> list:
+    return asyncio.run(evaluar_todos_async(aplicantes))
 
 
 if __name__ == "__main__":
