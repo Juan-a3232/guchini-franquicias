@@ -1,47 +1,54 @@
 import json
 import os
 from groq import Groq
+from enricher import enriquecer_aplicante, formatear_para_scorer
 
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 CRITERIOS_GUCHINI = """
-Sos el evaluador de franquicias de Guchini, la sandwichería viral de Mendoza.
-Evaluá cada aplicante según estos criterios:
+Sos el evaluador de franquicias de Guchini, la sandwichería viral de Mendoza, Argentina.
+La inversión total real de una franquicia Guchini es de aproximadamente USD 105.000.
+Evaluá cada aplicante según estos criterios con total rigor:
 
-1. CAPITAL (peso: 30%)
-   - Ideal: más de $20,000 USD
-   - Aceptable: $15,000 - $20,000 USD
-   - Insuficiente: menos de $15,000 USD
+1. CAPACIDAD FINANCIERA (peso: 30%)
+   - Ideal: capital disponible mayor a USD 105.000 (puede cubrir inversión completa sin financiamiento)
+   - Aceptable: USD 70.000 - USD 105.000 (necesita financiamiento parcial pero es viable)
+   - En revisión: USD 40.000 - USD 70.000 (necesita financiamiento significativo, riesgo alto)
+   - Insuficiente: menos de USD 40.000 (no puede afrontar la inversión, descartable)
 
-2. EXPERIENCIA GASTRONÓMICA (peso: 25%)
-   - Ideal: tiene negocio gastronómico propio funcionando
-   - Aceptable: experiencia en el rubro aunque sea en relación de dependencia
-   - Insuficiente: sin ninguna experiencia en gastronomía
+2. PERFIL COMERCIAL Y LIDERAZGO (peso: 25%)
+   - Ideal: emprendedor con negocio propio exitoso, manejo de equipos, experiencia en ventas o gastronomía
+   - Aceptable: experiencia comercial sólida aunque sea en relación de dependencia, con manejo de personas
+   - Insuficiente: sin experiencia comercial ni liderazgo, perfil puramente técnico o sin historial relevante
 
-3. TIENE LOCAL (peso: 20%)
-   - Ideal: tiene local propio o disponible en zona de alto tránsito
-   - Aceptable: no tiene pero tiene plan concreto para conseguir uno
-   - Insuficiente: no tiene y no mencionó cómo conseguirlo
+3. DISPONIBILIDAD OPERATIVA (peso: 20%)
+   - Ideal: el franquiciado opera el local personalmente y a tiempo completo (no es inversor pasivo)
+   - Aceptable: tiene un gerente identificado y aprobado por Guchini, con supervisión activa del franquiciado
+   - Insuficiente: quiere ser inversor pasivo sin involucramiento operativo, o no tiene plan operativo claro
 
 4. MOTIVACIÓN Y FIT CON LA MARCA (peso: 15%)
-   - Ideal: conoce la marca en profundidad, menciona a Federico, entiende el concepto
-   - Aceptable: motivación genuina aunque sea vaga
-   - Insuficiente: respuesta genérica o poco convincente
+   - Ideal: conoce a Federico Robello, entiende el concepto viral de Guchini, menciona el producto específico, tiene convicción real
+   - Aceptable: motivación genuina y conocimiento básico de la marca, aunque superficial
+   - Insuficiente: respuesta genérica, no conoce la marca en profundidad, o busca solo retorno financiero
 
-5. CIUDAD / MERCADO (peso: 10%)
-   - Ideal: ciudad grande con potencial (CABA, Córdoba, Rosario) o ciudad donde Guchini quiere expandirse
-   - Aceptable: ciudad mediana con mercado joven
-   - Insuficiente: ciudad pequeña o saturada
+5. CIUDAD Y MERCADO (peso: 10%)
+   - Ideal: ciudades prioritarias Año 1 (Córdoba, CABA, Mar del Plata, Bahía Blanca) con potencial de alto tránsito
+   - Aceptable: ciudad mediana con mercado joven y sin saturación del rubro sandwiches premium
+   - Insuficiente: ciudad pequeña, mercado saturado, o ciudad donde Guchini ya tiene presencia (Mendoza)
 
-Sé estricto y diferenciador en los scores. No des 9+ a todos los candidatos sólidos — reservá el 9-10 para candidatos verdaderamente excepcionales en todos los criterios. Un candidato con capital justo al límite, sin local propio, o con experiencia limitada no puede superar el 8. Usá el rango completo del 1 al 10.
+IMPORTANTE — Sé extremadamente estricto:
+- Reservá 9-10 SOLO para candidatos excepcionales en TODOS los criterios
+- Ningún candidato sin capital suficiente (menos de USD 70K) puede pasar de 6.5
+- La disponibilidad operativa personal es NO NEGOCIABLE para Guchini — penalizá fuerte al inversor pasivo
+- Usá el rango completo del 1 al 10, con decimales
 
 Devolvé SIEMPRE un JSON con este formato exacto, sin texto adicional:
 {
   "score": <número del 1 al 10 con un decimal>,
   "breakdown": {
     "capital": <número del 1 al 10>,
-    "experiencia": <número del 1 al 10>,
-    "local": <número del 1 al 10>,
+    "perfil_comercial": <número del 1 al 10>,
+    "disponibilidad": <número del 1 al 10>,
     "motivacion": <número del 1 al 10>,
     "ciudad": <número del 1 al 10>
   },
@@ -53,11 +60,23 @@ Devolvé SIEMPRE un JSON con este formato exacto, sin texto adicional:
 """
 
 def evaluar_aplicante(aplicante: dict) -> dict:
+    # Enriquecer con datos públicos de internet
+    enrichment = enriquecer_aplicante(aplicante)
+    info_publica = formatear_para_scorer(enrichment)
+
     prompt = f"""
 {CRITERIOS_GUCHINI}
 
 Aplicante a evaluar:
 {json.dumps(aplicante, ensure_ascii=False, indent=2)}
+
+Información pública encontrada en internet sobre este candidato:
+{info_publica}
+
+Usá la información pública para validar o cuestionar lo que declaró el candidato.
+Si encontraste su negocio online y tiene buenas reseñas, es una señal positiva.
+Si no encontraste nada de lo que declaró, mencionalo como red flag.
+Si encontraste inconsistencias entre lo declarado y lo encontrado, bajá el score.
 
 Devolvé solo el JSON, sin texto adicional, sin bloques de código.
 """
