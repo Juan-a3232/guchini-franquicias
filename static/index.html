@@ -463,30 +463,30 @@
         <div class="pipeline-title">Inteligencia de Pipeline</div>
         <div class="pipeline-subtitle">Análisis de interesados en franquicia Guchini · Datos del formulario oficial</div>
       </div>
-      <div class="pipeline-badge">Total interesados: <span>131</span></div>
+      <div class="pipeline-badge">Total evaluados: <span id="kpi-badge-total">—</span></div>
     </div>
 
     <!-- KPIs -->
     <div class="pipeline-kpis">
       <div class="kpi-card">
-        <div class="kpi-value neutral">131</div>
-        <div class="kpi-label">Total interesados</div>
-        <div class="kpi-sub">Formulario activo</div>
+        <div class="kpi-value neutral" id="kpi-total">—</div>
+        <div class="kpi-label">Total evaluados</div>
+        <div class="kpi-sub" id="kpi-total-sub">Cargando…</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-value green">69%</div>
+        <div class="kpi-value green" id="kpi-aprobados">—</div>
+        <div class="kpi-label">Candidatos APROBAR</div>
+        <div class="kpi-sub" id="kpi-aprobados-sub">Cargando…</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value accent" id="kpi-personal">—</div>
         <div class="kpi-label">Operan personalmente</div>
-        <div class="kpi-sub">90 de 131 — modelo preferido Guchini</div>
+        <div class="kpi-sub" id="kpi-personal-sub">Modelo requerido por Guchini</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-value accent">Producto</div>
-        <div class="kpi-label">Driver #1 de atracción</div>
-        <div class="kpi-sub">43 menciones · calidad del sandwich</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-value amber">Mendoza</div>
+        <div class="kpi-value amber" id="kpi-topcity">—</div>
         <div class="kpi-label">Ciudad con más leads</div>
-        <div class="kpi-sub">42 leads — mercado ya cubierto ⚠️</div>
+        <div class="kpi-sub" id="kpi-topcity-sub">Cargando…</div>
       </div>
     </div>
 
@@ -518,8 +518,8 @@
     <!-- Charts row 1 -->
     <div class="charts-grid">
       <div class="chart-card full-width">
-        <div class="chart-title">Distribución geográfica de interesados</div>
-        <div class="chart-subtitle">
+        <div class="chart-title">Distribución geográfica de evaluados</div>
+        <div class="chart-subtitle" id="chart-ciudades-sub">
           Top ciudades por cantidad de leads ·
           <span class="city-tag priority">● Prioritaria Año 1</span>
           <span class="city-tag warning">● Ya cubierta</span>
@@ -535,7 +535,7 @@
     <div class="charts-grid">
       <div class="chart-card">
         <div class="chart-title">Modalidad de operación</div>
-        <div class="chart-subtitle">¿Cómo planean manejar el local? · 131 respuestas</div>
+        <div class="chart-subtitle" id="chart-op-sub">¿Cómo planean manejar el local?</div>
         <div class="donut-layout">
           <div class="donut-wrap"><canvas id="chartOperacion"></canvas></div>
           <div class="donut-legend">
@@ -548,8 +548,8 @@
       </div>
 
       <div class="chart-card">
-        <div class="chart-title">¿Única fuente de ingreso?</div>
-        <div class="chart-subtitle">Situación financiera actual · 137 respuestas</div>
+        <div class="chart-title">Resultado de evaluación IA</div>
+        <div class="chart-subtitle" id="chart-rec-sub">Distribución de recomendaciones</div>
         <div class="donut-layout">
           <div class="donut-wrap"><canvas id="chartIngreso"></canvas></div>
           <div class="donut-legend">
@@ -565,8 +565,8 @@
     <!-- Charts row 3 -->
     <div class="charts-grid">
       <div class="chart-card full-width">
-        <div class="chart-title">Principales motivos de atracción hacia la franquicia</div>
-        <div class="chart-subtitle">Análisis de respuestas abiertas · menciones totales</div>
+        <div class="chart-title">Distribución de capital declarado</div>
+        <div class="chart-subtitle" id="chart-cap-sub">Por rango · inversión requerida USD 105K</div>
         <div class="chart-wrap" style="height: 200px">
           <canvas id="chartMotivos"></canvas>
         </div>
@@ -579,8 +579,6 @@
 <script>
   let allData = [];
   let currentFilter = 'todos';
-  let chartsInitialized = false;
-
   /* ==============================
      TAB SWITCHING
   ============================== */
@@ -590,8 +588,8 @@
     document.getElementById('tab-' + tab).classList.add('active');
     btn.classList.add('active');
 
-    if (tab === 'pipeline' && !chartsInitialized) {
-      chartsInitialized = true;
+    if (tab === 'pipeline') {
+      destroyCharts();
       setTimeout(initCharts, 50);
     }
   }
@@ -704,7 +702,7 @@
     document.getElementById('lista').innerHTML = data.map(r => {
       const e = r.evaluacion;
       const score = e.score;
-      const fillClass = score >= 7 ? 'high' : score >= 5 ? 'mid' : 'low';
+      const fillClass = e.recomendacion === 'APROBAR' ? 'high' : e.recomendacion === 'REVISAR' ? 'mid' : 'low';
       const fortalezas = (e.fortalezas || []).map(f => `<span class="tag strength">${f}</span>`).join('');
       const flags = (e.red_flags || []).map(f => `<span class="tag flag">${f}</span>`).join('');
       const estado = r.estado || 'Pendiente';
@@ -863,6 +861,8 @@
   }
 
   function initCharts() {
+    const data = allData || [];
+    const n = data.length || 1;
     const textColor = getTextColor();
     const mutedColor = getMutedColor();
     const borderColor = getBorderColor();
@@ -870,153 +870,176 @@
     Chart.defaults.font.family = 'Inter, -apple-system, sans-serif';
     Chart.defaults.color = mutedColor;
 
-    // ---- CIUDADES (horizontal bar) ----
-    const ciudadesData = {
-      labels: ['Mendoza','Bs. Aires','Córdoba','San Juan','Internacional','Neuquén','Tucumán','Santa Fe','Salta','San Luis','Rosario','Mar del Plata','Catamarca','Corrientes','La Rioja','CABA','Bahía Blanca'],
-      values: [42, 20, 19, 15, 10, 9, 8, 6, 5, 3, 3, 2, 2, 2, 2, 1, 1],
+    // ── Compute derived data ──────────────────────────────────────────────────
+    // Cities: normalize "Buenos Aires - Palermo" → "Bs. Aires", etc.
+    const CITY_ALIAS = {
+      'buenos aires': 'Bs. Aires',
+      'gran buenos aires': 'Bs. Aires',
+      'gba': 'Bs. Aires',
+      'ciudad autónoma de buenos aires': 'CABA',
+      'ciudad de buenos aires': 'CABA',
+      'caba': 'CABA',
+      'bahía blanca': 'Bahía Blanca',
+      'bahia blanca': 'Bahía Blanca',
+      'mar del plata': 'Mar del Plata',
+      'córdoba': 'Córdoba',
+      'cordoba': 'Córdoba',
+      'mendoza': 'Mendoza',
+      'san juan': 'San Juan',
+      'neuquén': 'Neuquén',
+      'neuquen': 'Neuquén',
+      'tucumán': 'Tucumán',
+      'tucuman': 'Tucumán',
+      'santa fe': 'Santa Fe',
+      'rosario': 'Rosario',
+      'salta': 'Salta',
+      'san luis': 'San Luis',
+      'catamarca': 'Catamarca',
+      'corrientes': 'Corrientes',
+      'la rioja': 'La Rioja',
     };
+    function normalizeCity(raw) {
+      if (!raw) return 'Sin especificar';
+      const base = raw.split(' - ')[0].trim().toLowerCase();
+      return CITY_ALIAS[base] || raw.split(' - ')[0].trim();
+    }
 
-    // Priority: Córdoba(2), Mar del Plata(11), CABA(15), Bahía Blanca(16) → green
-    // Warning: Mendoza(0) → red
-    // Others → muted gray or amber
-    const priorityCities = new Set(['Córdoba', 'Mar del Plata', 'CABA', 'Bahía Blanca']);
-    const warningCities  = new Set(['Mendoza']);
-    const potentialCities = new Set(['Bs. Aires', 'Neuquén', 'San Juan', 'Tucumán']);
+    const cityCount = {};
+    data.forEach(r => {
+      const c = normalizeCity(r.ciudad);
+      cityCount[c] = (cityCount[c] || 0) + 1;
+    });
+    const cityEntries = Object.entries(cityCount).sort((a,b) => b[1]-a[1]).slice(0, 16);
+    const cityLabels = cityEntries.map(e => e[0]);
+    const cityValues = cityEntries.map(e => e[1]);
 
-    const ciudadesColors = ciudadesData.labels.map(l => {
-      if (warningCities.has(l))  return '#dc2626';
-      if (priorityCities.has(l)) return '#16a34a';
-      if (potentialCities.has(l)) return '#d97706';
+    const PRIORITY = new Set(['Córdoba', 'Mar del Plata', 'CABA', 'Bahía Blanca']);
+    const COVERED  = new Set(['Mendoza', 'San Rafael', 'San Juan']);
+    const POTENTIAL = new Set(['Bs. Aires', 'Neuquén', 'Tucumán', 'Rosario', 'Santa Fe']);
+    const ciudadesColors = cityLabels.map(l => {
+      if (COVERED.has(l))   return '#dc2626';
+      if (PRIORITY.has(l))  return '#16a34a';
+      if (POTENTIAL.has(l)) return '#d97706';
       return '#D8D6D0';
     });
 
+    // Operation mode
+    const personalCnt = data.filter(r => r.disponibilidad_operativa === 'personal').length;
+    const inversorCnt = data.filter(r => r.disponibilidad_operativa === 'inversor').length;
+    const otroCnt = n - personalCnt - inversorCnt;
+
+    // Recommendations
+    const aprobCnt   = data.filter(r => r.evaluacion?.recomendacion === 'APROBAR').length;
+    const revisarCnt = data.filter(r => r.evaluacion?.recomendacion === 'REVISAR').length;
+    const rechCnt    = data.filter(r => r.evaluacion?.recomendacion === 'RECHAZAR').length;
+
+    // Capital brackets
+    const capBuckets = { '<$40K': 0, '$40K–$70K': 0, '$70K–$105K': 0, '>$105K': 0 };
+    data.forEach(r => {
+      const cap = r.capital_disponible || 0;
+      if      (cap > 105000) capBuckets['>$105K']++;
+      else if (cap >= 70000) capBuckets['$70K–$105K']++;
+      else if (cap >= 40000) capBuckets['$40K–$70K']++;
+      else                   capBuckets['<$40K']++;
+    });
+
+    // ── Update KPIs ───────────────────────────────────────────────────────────
+    const topCity = cityEntries[0]?.[0] || '—';
+    const topCityCnt = cityEntries[0]?.[1] || 0;
+    const isCovered = COVERED.has(topCity);
+    document.getElementById('kpi-badge-total').textContent = n;
+    document.getElementById('kpi-total').textContent = n;
+    document.getElementById('kpi-total-sub').textContent = `${aprobCnt} aprob · ${revisarCnt} revisar · ${rechCnt} rechazo`;
+    document.getElementById('kpi-aprobados').textContent = aprobCnt;
+    document.getElementById('kpi-aprobados-sub').textContent = `${Math.round(aprobCnt/n*100)}% del total evaluado`;
+    document.getElementById('kpi-personal').textContent = Math.round(personalCnt/n*100) + '%';
+    document.getElementById('kpi-personal-sub').textContent = `${personalCnt} de ${n} — modelo requerido Guchini`;
+    document.getElementById('kpi-topcity').textContent = topCity;
+    document.getElementById('kpi-topcity-sub').textContent = `${topCityCnt} leads${isCovered ? ' — mercado ya cubierto ⚠️' : ''}`;
+    document.getElementById('chart-ciudades-sub').innerHTML = `
+      Top ciudades por cantidad de leads ·
+      <span class="city-tag priority">● Prioritaria Año 1</span>
+      <span class="city-tag warning">● Ya cubierta</span>
+      <span class="city-tag neutral">● Potencial</span>`;
+    document.getElementById('chart-op-sub').textContent = `¿Cómo planean manejar el local? · ${n} evaluados`;
+    document.getElementById('chart-rec-sub').textContent = `Distribución de recomendaciones · ${n} evaluados`;
+    document.getElementById('chart-cap-sub').textContent = `Por rango de capital · inversión requerida USD 105K`;
+
+    // ── Chart: Ciudades ───────────────────────────────────────────────────────
     const ctxCiudades = document.getElementById('chartCiudades').getContext('2d');
     chartInstances.ciudades = new Chart(ctxCiudades, {
       type: 'bar',
       data: {
-        labels: ciudadesData.labels,
-        datasets: [{
-          data: ciudadesData.values,
-          backgroundColor: ciudadesColors,
-          borderRadius: 4,
-          borderSkipped: false,
-        }]
+        labels: cityLabels,
+        datasets: [{ data: cityValues, backgroundColor: ciudadesColors, borderRadius: 4, borderSkipped: false }]
       },
       options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: ctx => ` ${ctx.parsed.x} leads (${Math.round(ctx.parsed.x/131*100)}%)`
-            }
-          }
+          tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.x} leads (${Math.round(ctx.parsed.x/n*100)}%)` } }
         },
         scales: {
-          x: {
-            grid: { color: borderColor },
-            ticks: { color: mutedColor, font: { size: 11 } },
-          },
-          y: {
-            grid: { display: false },
-            ticks: { color: textColor, font: { size: 11, weight: '500' } },
-          }
+          x: { grid: { color: borderColor }, ticks: { color: mutedColor, font: { size: 11 } } },
+          y: { grid: { display: false }, ticks: { color: textColor, font: { size: 11, weight: '500' } } }
         }
       }
     });
 
-    // ---- OPERACIÓN (doughnut) ----
+    // ── Chart: Operación (doughnut) ───────────────────────────────────────────
     const ctxOp = document.getElementById('chartOperacion').getContext('2d');
     chartInstances.operacion = new Chart(ctxOp, {
       type: 'doughnut',
       data: {
-        labels: ['Personalmente', 'Gerente', 'No especifica', 'Sociedad'],
-        datasets: [{
-          data: [90, 29, 10, 2],
-          backgroundColor: ['#16a34a', '#d97706', '#9B9890', '#1C1B18'],
-          borderWidth: 0,
-          hoverOffset: 4,
-        }]
+        labels: ['Personalmente', 'Inversor/Gerente', 'No especifica'],
+        datasets: [{ data: [personalCnt, inversorCnt, otroCnt], backgroundColor: ['#16a34a', '#dc2626', '#9B9890'], borderWidth: 0, hoverOffset: 4 }]
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '68%',
+        responsive: true, maintainAspectRatio: false, cutout: '68%',
         plugins: {
           legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: ctx => ` ${ctx.parsed} leads (${Math.round(ctx.parsed/131*100)}%)`
-            }
-          }
+          tooltip: { callbacks: { label: ctx => ` ${ctx.parsed} (${Math.round(ctx.parsed/n*100)}%)` } }
         }
       }
     });
 
-    // ---- INGRESO (doughnut) ----
+    // ── Chart: Recomendaciones (doughnut) ─────────────────────────────────────
     const ctxIng = document.getElementById('chartIngreso').getContext('2d');
     chartInstances.ingreso = new Chart(ctxIng, {
       type: 'doughnut',
       data: {
-        labels: ['Otras fuentes', 'Única fuente', 'No especifica', 'Principal, no única'],
-        datasets: [{
-          data: [100, 22, 13, 2],
-          backgroundColor: ['#16a34a', '#dc2626', '#9B9890', '#d97706'],
-          borderWidth: 0,
-          hoverOffset: 4,
-        }]
+        labels: ['APROBAR', 'REVISAR', 'RECHAZAR'],
+        datasets: [{ data: [aprobCnt, revisarCnt, rechCnt], backgroundColor: ['#16a34a', '#d97706', '#dc2626'], borderWidth: 0, hoverOffset: 4 }]
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '68%',
+        responsive: true, maintainAspectRatio: false, cutout: '68%',
         plugins: {
           legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: ctx => ` ${ctx.parsed} interesados (${Math.round(ctx.parsed/137*100)}%)`
-            }
-          }
+          tooltip: { callbacks: { label: ctx => ` ${ctx.parsed} candidatos (${Math.round(ctx.parsed/n*100)}%)` } }
         }
       }
     });
 
-    // ---- MOTIVOS (horizontal bar) ----
+    // ── Chart: Capital (horizontal bar) ──────────────────────────────────────
+    const capLabels = Object.keys(capBuckets);
+    const capValues = Object.values(capBuckets);
+    const capColors = ['#dc2626', '#d97706', '#C8960C', '#16a34a'];
     const ctxMot = document.getElementById('chartMotivos').getContext('2d');
     chartInstances.motivos = new Chart(ctxMot, {
       type: 'bar',
       data: {
-        labels: ['Producto / calidad', 'Marca / marketing', 'Modelo de negocio', 'Recomendación / redes', 'Atención / experiencia'],
-        datasets: [{
-          data: [43, 39, 22, 13, 5],
-          backgroundColor: ['#C8960C', '#d97706', '#D8B96A', '#E8D4A0', '#D8D6D0'],
-          borderRadius: 4,
-          borderSkipped: false,
-        }]
+        labels: capLabels,
+        datasets: [{ data: capValues, backgroundColor: capColors, borderRadius: 4, borderSkipped: false }]
       },
       options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: ctx => ` ${ctx.parsed.x} menciones`
-            }
-          }
+          tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.x} candidatos (${Math.round(ctx.parsed.x/n*100)}%)` } }
         },
         scales: {
-          x: {
-            grid: { color: borderColor },
-            ticks: { color: mutedColor, font: { size: 11 } },
-          },
-          y: {
-            grid: { display: false },
-            ticks: { color: textColor, font: { size: 11, weight: '500' } },
-          }
+          x: { grid: { color: borderColor }, ticks: { color: mutedColor, font: { size: 11 } } },
+          y: { grid: { display: false }, ticks: { color: textColor, font: { size: 13, weight: '600' } } }
         }
       }
     });
