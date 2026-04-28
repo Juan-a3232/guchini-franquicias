@@ -871,37 +871,61 @@
     Chart.defaults.color = mutedColor;
 
     // ── Compute derived data ──────────────────────────────────────────────────
-    // Cities: normalize "Buenos Aires - Palermo" → "Bs. Aires", etc.
-    const CITY_ALIAS = {
+    // Cities: robust normalization handling variants from the Google Sheet
+    const CITY_ALIASES = {
       'buenos aires': 'Bs. Aires',
       'gran buenos aires': 'Bs. Aires',
       'gba': 'Bs. Aires',
-      'ciudad autónoma de buenos aires': 'CABA',
+      'ciudad autonoma de buenos aires': 'CABA',
       'ciudad de buenos aires': 'CABA',
       'caba': 'CABA',
-      'bahía blanca': 'Bahía Blanca',
       'bahia blanca': 'Bahía Blanca',
       'mar del plata': 'Mar del Plata',
-      'córdoba': 'Córdoba',
       'cordoba': 'Córdoba',
+      'nueva cordoba': 'Córdoba',
+      'cordoba capital': 'Córdoba',
       'mendoza': 'Mendoza',
       'san juan': 'San Juan',
-      'neuquén': 'Neuquén',
+      'san juan argentina': 'San Juan',
+      'san juan capital': 'San Juan',
       'neuquen': 'Neuquén',
-      'tucumán': 'Tucumán',
+      'neuquen capital': 'Neuquén',
       'tucuman': 'Tucumán',
+      'san miguel de tucuman': 'Tucumán',
       'santa fe': 'Santa Fe',
       'rosario': 'Rosario',
       'salta': 'Salta',
+      'salta capital': 'Salta',
       'san luis': 'San Luis',
+      'san luis capital': 'San Luis',
+      'san rafael': 'San Rafael',
+      'san rafael mendoza': 'San Rafael',
       'catamarca': 'Catamarca',
       'corrientes': 'Corrientes',
       'la rioja': 'La Rioja',
+      'la plata': 'La Plata',
+      'resistencia': 'Resistencia',
+      'posadas': 'Posadas',
+      'jujuy': 'Jujuy',
+      'san salvador de jujuy': 'Jujuy',
+      'formosa': 'Formosa',
+      'rio gallegos': 'Río Gallegos',
+      'bariloche': 'Bariloche',
+      'san carlos de bariloche': 'Bariloche',
     };
+    function stripAccents(s) {
+      return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+    }
     function normalizeCity(raw) {
       if (!raw) return 'Sin especificar';
-      const base = raw.split(' - ')[0].trim().toLowerCase();
-      return CITY_ALIAS[base] || raw.split(' - ')[0].trim();
+      if (/otro lugar|enviar un correo|internacional/i.test(raw)) return 'Internacional / Otra';
+      // Strip everything after first comma, then after " - "
+      let s = raw.split(',')[0].split(' - ')[0].trim();
+      // Remove trailing suffixes like "capital", "Argentina", "provincia"
+      s = s.replace(/\s+(capital|argentina|provincia)$/i, '').trim();
+      // Lookup with accents stripped and lowercased
+      const key = stripAccents(s).toLowerCase();
+      return CITY_ALIASES[key] || s;
     }
 
     const cityCount = {};
@@ -913,9 +937,9 @@
     const cityLabels = cityEntries.map(e => e[0]);
     const cityValues = cityEntries.map(e => e[1]);
 
-    const PRIORITY = new Set(['Córdoba', 'Mar del Plata', 'CABA', 'Bahía Blanca']);
-    const COVERED  = new Set(['Mendoza', 'San Rafael', 'San Juan']);
-    const POTENTIAL = new Set(['Bs. Aires', 'Neuquén', 'Tucumán', 'Rosario', 'Santa Fe']);
+    const PRIORITY = new Set(['Córdoba', 'Mar del Plata', 'CABA', 'Bahía Blanca', 'Rosario', 'Santa Fe', 'La Plata', 'Tucumán', 'Salta']);
+    const COVERED  = new Set(['Mendoza', 'San Rafael']);
+    const POTENTIAL = new Set(['Bs. Aires', 'Neuquén', 'San Juan', 'San Luis', 'Bariloche']);
     const ciudadesColors = cityLabels.map(l => {
       if (COVERED.has(l))   return '#dc2626';
       if (PRIORITY.has(l))  return '#16a34a';

@@ -22,10 +22,14 @@ CAPITAL_MAP = [
     (80000,  ["80.000",  "80,000"]),
 ]
 
-# Ciudades prioritarias Año 1 (según Resumen Ejecutivo Guchini)
-PRIORITY_CITIES = {"córdoba", "caba", "mar del plata", "bahía blanca", "bahia blanca"}
+# Ciudades prioritarias Año 1
+PRIORITY_CITIES = {
+    "córdoba", "caba", "mar del plata", "bahía blanca", "bahia blanca",
+    "rosario", "santa fe", "la plata", "tucumán", "tucuman", "salta",
+    "nueva córdoba", "nueva cordoba",
+}
 # Ciudades ya cubiertas por Casa Central (no priorizar)
-COVERED_CITIES = {"mendoza", "san rafael", "san juan"}
+COVERED_CITIES = {"mendoza", "san rafael"}
 
 
 def _get(row, idx):
