@@ -89,7 +89,7 @@ def _load_cache() -> list:
 async def run_evaluation_task(aplicantes_nuevos: list, cached_resultados: list):
     """
     Evaluates only the new applicants (not already in cache) and merges results.
-    Updates eval_status as it goes.
+    Saves incrementally so partial results are never lost if interrupted.
     """
     global eval_status
     eval_status["running"] = True
@@ -97,20 +97,26 @@ async def run_evaluation_task(aplicantes_nuevos: list, cached_resultados: list):
     eval_status["total"] = len(aplicantes_nuevos)
     eval_status["error"] = None
 
-    def on_progress():
+    nuevos_resultados = list(cached_resultados)  # start with cached
+
+    def on_progress(resultado):
         eval_status["done"] += 1
+        nuevos_resultados.append(resultado)
+        # Save incrementally after every 10 candidates
+        if eval_status["done"] % 10 == 0 or eval_status["done"] == eval_status["total"]:
+            sorted_resultados = sorted(nuevos_resultados, key=lambda x: x["evaluacion"]["score"], reverse=True)
+            with open("resultados.json", "w", encoding="utf-8") as f:
+                json.dump(sorted_resultados, f, ensure_ascii=False, indent=2)
 
     try:
-        nuevos_resultados = await evaluar_todos_async(aplicantes_nuevos, on_progress=on_progress)
+        await evaluar_todos_async(aplicantes_nuevos, on_progress=on_progress)
 
-        # Merge new results with cached ones
-        all_resultados = cached_resultados + nuevos_resultados
-        all_resultados.sort(key=lambda x: x["evaluacion"]["score"], reverse=True)
-
+        # Final save sorted
+        all_resultados = sorted(nuevos_resultados, key=lambda x: x["evaluacion"]["score"], reverse=True)
         with open("resultados.json", "w", encoding="utf-8") as f:
             json.dump(all_resultados, f, ensure_ascii=False, indent=2)
 
-        print(f"[scorer] Evaluación completa: {len(nuevos_resultados)} nuevos + {len(cached_resultados)} en caché = {len(all_resultados)} total")
+        print(f"[scorer] Evaluación completa: {eval_status['done']} nuevos + {len(cached_resultados)} en caché = {len(all_resultados)} total")
     except Exception as e:
         eval_status["error"] = str(e)
         print(f"[scorer] Error en evaluación: {e}")

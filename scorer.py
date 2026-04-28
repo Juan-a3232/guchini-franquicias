@@ -119,7 +119,7 @@ async def evaluar_todos_async(aplicantes: list, on_progress=None) -> list:
                 evaluacion = FALLBACK_EVALUACION.copy()
             resultado = {**aplicante, "evaluacion": evaluacion}
             if on_progress:
-                on_progress()
+                on_progress(resultado)
             return resultado
 
     tasks = [eval_one(a) for a in aplicantes]
