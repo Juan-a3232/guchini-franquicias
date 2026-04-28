@@ -33,9 +33,9 @@ Evaluá cada aplicante según estos criterios con total rigor:
    - Insuficiente: respuesta genérica, no conoce la marca en profundidad, o busca solo retorno financiero
 
 5. CIUDAD Y MERCADO (peso: 10%)
-   - Ideal: ciudades prioritarias Año 1 (Córdoba, CABA, Mar del Plata, Bahía Blanca) con potencial de alto tránsito
+   - Ideal: ciudades target de expansión (Córdoba, CABA, Mar del Plata, Bahía Blanca, Rosario, Santa Fe, La Plata, Tucumán, Salta) con potencial de alto tránsito y mercado joven
    - Aceptable: ciudad mediana con mercado joven y sin saturación del rubro sandwiches premium
-   - Insuficiente: ciudad pequeña, mercado saturado, o ciudad donde Guchini ya tiene presencia (Mendoza)
+   - Insuficiente: ciudad pequeña, mercado saturado, o ciudad donde Guchini ya tiene presencia (Mendoza, San Rafael)
 
 IMPORTANTE — Sé extremadamente estricto:
 - Reservá 9-10 SOLO para candidatos excepcionales en TODOS los criterios
