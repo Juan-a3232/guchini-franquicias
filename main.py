@@ -68,13 +68,13 @@ def merge_estados(resultados):
 
 # ─── Smart-cache helpers ───────────────────────────────────────────────────────
 
-def _emails_in_cache() -> set:
-    """Returns the set of emails that already have a result in resultados.json."""
+def _ids_in_cache() -> set:
+    """Returns the set of IDs that already have a result in resultados.json."""
     if not os.path.exists("resultados.json"):
         return set()
     with open("resultados.json", encoding="utf-8") as f:
         cached = json.load(f)
-    return {r.get("email", "").lower().strip() for r in cached if r.get("email")}
+    return {r.get("id") for r in cached if r.get("id") is not None}
 
 
 def _load_cache() -> list:
@@ -169,12 +169,12 @@ async def refresh_ranking():
 
     loop = asyncio.get_event_loop()
     aplicantes = await loop.run_in_executor(None, get_aplicantes)
-    cached_emails = _emails_in_cache()
     cached_resultados = _load_cache()
 
+    cached_ids = _ids_in_cache()
     aplicantes_nuevos = [
         a for a in aplicantes
-        if a.get("email", "").lower().strip() not in cached_emails
+        if a.get("id") not in cached_ids
     ]
 
     if not aplicantes_nuevos:
