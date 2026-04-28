@@ -38,11 +38,10 @@ def buscar_tavily(query: str, max_results: int = 3) -> list[dict]:
 def enriquecer_aplicante(aplicante: dict) -> dict:
     """
     Busca información pública del aplicante en internet.
-    Devuelve un dict con lo que encontró, organizado por fuente.
+    Una sola búsqueda combinada para minimizar créditos de Tavily.
     """
     nombre = aplicante.get("nombre", "")
     ciudad = aplicante.get("ciudad", "")
-    instagram = aplicante.get("redes_sociales", "")
     experiencia = aplicante.get("experiencia_gastronomica", "")
 
     enrichment = {
@@ -52,40 +51,18 @@ def enriquecer_aplicante(aplicante: dict) -> dict:
         "fuentes": [],
     }
 
-    # 1. Buscar el negocio que declaró (si mencionó uno)
-    palabras_clave_negocio = _extraer_nombre_negocio(experiencia)
-    if palabras_clave_negocio:
-        query_negocio = f"{palabras_clave_negocio} {ciudad} restaurante gastronomía"
-        resultados = buscar_tavily(query_negocio, max_results=2)
-        if resultados:
-            enrichment["negocio"] = {
-                "query": query_negocio,
-                "resultados": resultados,
-            }
-            enrichment["fuentes"].extend([r["url"] for r in resultados])
+    # Una sola búsqueda combinada: nombre + ciudad + contexto gastronómico
+    negocio = _extraer_nombre_negocio(experiencia)
+    query = f'"{nombre}" {ciudad} {negocio} gastronomía emprendimiento'.strip()
+    resultados = buscar_tavily(query, max_results=3)
 
-    # 2. Buscar al candidato por nombre y ciudad
-    query_persona = f'"{nombre}" {ciudad} gastronomía emprendimiento negocio'
-    resultados_persona = buscar_tavily(query_persona, max_results=2)
-    if resultados_persona:
+    if resultados:
         enrichment["perfil_general"] = {
-            "query": query_persona,
-            "resultados": resultados_persona,
+            "query": query,
+            "resultados": resultados,
         }
-        enrichment["fuentes"].extend([r["url"] for r in resultados_persona])
+        enrichment["fuentes"] = [r["url"] for r in resultados]
 
-    # 3. Verificar Instagram si lo proporcionó
-    if instagram and "instagram.com" in instagram:
-        handle = instagram.split("instagram.com/")[-1].strip("/")
-        query_ig = f"instagram {handle} {ciudad}"
-        resultados_ig = buscar_tavily(query_ig, max_results=1)
-        if resultados_ig:
-            enrichment["instagram"] = {
-                "handle": handle,
-                "resultados": resultados_ig,
-            }
-
-    enrichment["fuentes"] = list(set(enrichment["fuentes"]))
     return enrichment
 
 
