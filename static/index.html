@@ -601,7 +601,11 @@
   async function loadRanking() {
     const res = await fetch('/api/ranking');
     allData = await res.json();
-    renderRanking(allData);
+    if (allData.length === 0) {
+      document.getElementById('lista').innerHTML = '<div class="loading">No hay evaluaciones todavía. Presioná "↺ Re-evaluar todo" para empezar.</div>';
+    } else {
+      renderRanking(allData);
+    }
   }
 
   async function refreshRanking() {

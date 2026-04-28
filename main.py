@@ -146,14 +146,7 @@ def get_ranking():
         with open("resultados.json", encoding="utf-8") as f:
             resultados = json.load(f)
         return merge_estados(resultados)
-
-    # Fallback sync evaluation (unlikely path — startup covers this)
-    import asyncio as _asyncio
-    aplicantes = get_aplicantes()
-    resultados = _asyncio.run(evaluar_todos_async(aplicantes))
-    with open("resultados.json", "w", encoding="utf-8") as f:
-        json.dump(resultados, f, ensure_ascii=False, indent=2)
-    return merge_estados(resultados)
+    return []
 
 
 @app.post("/api/ranking/refresh")
