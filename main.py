@@ -357,20 +357,4 @@ def export_excel():
     )
 
 
-@app.get("/api/test-enricher")
-def test_enricher(nombre: str, ciudad: str = "", experiencia: str = ""):
-    """Endpoint temporal para verificar que el enricher funciona desde Railway."""
-    from enricher import enriquecer_aplicante, formatear_para_scorer, _extract_business_names
-    fake = {"nombre": nombre, "ciudad": ciudad, "experiencia_gastronomica": experiencia}
-    negocios_extraidos = _extract_business_names(experiencia)
-    enrichment = enriquecer_aplicante(fake)
-    return {
-        "negocios_extraidos": negocios_extraidos,
-        "perfil_general": enrichment.get("perfil_general"),
-        "negocios_verificados": enrichment.get("negocios", []),
-        "fuentes_totales": enrichment.get("fuentes", []),
-        "texto_para_scorer": formatear_para_scorer(enrichment),
-    }
-
-
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
