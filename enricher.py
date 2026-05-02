@@ -1,4 +1,4 @@
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 
 def buscar_duckduckgo(query: str, max_results: int = 3) -> list[dict]:

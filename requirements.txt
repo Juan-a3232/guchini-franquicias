@@ -4,4 +4,4 @@ anthropic
 python-dotenv
 openpyxl
 requests
-duckduckgo-search
+ddgs
