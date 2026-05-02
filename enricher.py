@@ -129,14 +129,20 @@ def enriquecer_aplicante(aplicante: dict) -> dict:
     if not nombre:
         return {"perfil_general": None, "negocios": [], "fuentes": []}
 
-    negocios_declarados = _extract_business_names(experiencia, max_results=3)
+    negocios_declarados = _extract_business_names(experiencia, max_results=4)
 
     # Construir queries
     queries: list[tuple[str, str]] = []
     perfil_query = f'"{nombre}" {ciudad} gastronomía emprendimiento'.strip()
     queries.append(("perfil", perfil_query))
     for negocio in negocios_declarados:
-        q = f'"{negocio}" {ciudad}'.strip() if ciudad else f'"{negocio}"'
+        # Forzamos Argentina en la query: el region="ar-es" de DDG es un hint
+        # blando, agregar el país al texto filtra mejor (evita Coffeestar Armenia,
+        # La Forcheta España, etc.)
+        if ciudad:
+            q = f'"{negocio}" {ciudad} Argentina'
+        else:
+            q = f'"{negocio}" Argentina'
         queries.append(("negocio", q))
 
     # Ejecutar todas en paralelo
