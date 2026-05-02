@@ -1,6 +1,11 @@
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 from ddgs import DDGS
+
+# Sesgo a resultados argentinos (en español); evita ruido geográfico
+# (Coffeestar en Armenia, La Forcheta en España, etc.)
+_DDG_REGION = "ar-es"
 
 
 # Verbos / preámbulos a strippear DEL INICIO del match (ej: "Tengo Coffeestar" -> "Coffeestar")
@@ -36,22 +41,31 @@ _NAME_PATTERN = re.compile(
 )
 
 
-def _ddg_search(query: str, max_results: int = 3) -> list[dict]:
-    """Una búsqueda en DuckDuckGo, sin API key."""
-    try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=max_results))
-        return [
-            {
-                "titulo": r.get("title", ""),
-                "url": r.get("href", ""),
-                "fragmento": r.get("body", "")[:300],
-            }
-            for r in results
-        ]
-    except Exception as e:
-        print(f"[enricher] Error DuckDuckGo '{query}': {e}")
-        return []
+def _ddg_search(query: str, max_results: int = 3, retries: int = 2) -> list[dict]:
+    """
+    Una búsqueda en DuckDuckGo, sin API key.
+    Con sesgo regional argentino y retry simple ante rate limits.
+    """
+    last_err = None
+    for attempt in range(retries + 1):
+        try:
+            with DDGS() as ddgs:
+                results = list(ddgs.text(query, region=_DDG_REGION, max_results=max_results))
+            return [
+                {
+                    "titulo": r.get("title", ""),
+                    "url": r.get("href", ""),
+                    "fragmento": r.get("body", "")[:300],
+                }
+                for r in results
+            ]
+        except Exception as e:
+            last_err = e
+            # Backoff exponencial: 1s, 2s
+            if attempt < retries:
+                time.sleep(1 + attempt)
+    print(f"[enricher] Error DuckDuckGo '{query}' después de {retries + 1} intentos: {last_err}")
+    return []
 
 
 def _extract_business_names(experiencia: str, max_results: int = 4) -> list[str]:
