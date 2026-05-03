@@ -671,7 +671,8 @@
   function exportCSV() { window.open('/api/export/csv', '_blank'); }
 
   async function refreshFullRanking() {
-    if (!confirm('¿Re-evaluar los ' + allData.length + ' candidatos con los criterios actualizados? Tarda ~20 minutos.')) return;
+    const pwd = prompt('⚠️ Re-evaluar todo borra el caché y cuesta ~$15. Ingresá la contraseña para confirmar:');
+    if (pwd !== 'guchini2025') { if (pwd !== null) alert('Contraseña incorrecta.'); return; }
     const btn = document.getElementById('refreshFullBtn');
     const refreshBtn = document.getElementById('refreshBtn');
     btn.disabled = true;
