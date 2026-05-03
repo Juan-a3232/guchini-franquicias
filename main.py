@@ -13,7 +13,7 @@ from openpyxl.utils import get_column_letter
 
 load_dotenv()
 
-from scorer import evaluar_todos_async
+from scorer import evaluar_todos_async, _safe_score
 from data_loader import load_candidates
 
 app = FastAPI()
@@ -75,13 +75,20 @@ def merge_estados(resultados):
 
 # ─── Smart-cache helpers ───────────────────────────────────────────────────────
 
+def _is_fallback(r: dict) -> bool:
+    """Returns True if this result is a failed/fallback evaluation that should be retried."""
+    flags = r.get("evaluacion", {}).get("red_flags", [])
+    return "Error en evaluación automática" in flags
+
+
 def _ids_in_cache() -> set:
-    """Returns the set of IDs that already have a result in resultados.json."""
+    """Returns the set of IDs that already have a REAL result in resultados.json.
+    FALLBACKs are excluded so they get re-evaluated on the next refresh."""
     if not os.path.exists(RESULTADOS_FILE):
         return set()
     with open(RESULTADOS_FILE, encoding="utf-8") as f:
         cached = json.load(f)
-    return {r.get("id") for r in cached if r.get("id") is not None}
+    return {r.get("id") for r in cached if r.get("id") is not None and not _is_fallback(r)}
 
 
 def _load_cache() -> list:
@@ -111,7 +118,7 @@ async def run_evaluation_task(aplicantes_nuevos: list, cached_resultados: list):
         nuevos_resultados.append(resultado)
         # Save incrementally after every 10 candidates
         if eval_status["done"] % 10 == 0 or eval_status["done"] == eval_status["total"]:
-            sorted_resultados = sorted(nuevos_resultados, key=lambda x: x["evaluacion"]["score"], reverse=True)
+            sorted_resultados = sorted(nuevos_resultados, key=_safe_score, reverse=True)
             with open(RESULTADOS_FILE, "w", encoding="utf-8") as f:
                 json.dump(sorted_resultados, f, ensure_ascii=False, indent=2)
 
@@ -119,7 +126,7 @@ async def run_evaluation_task(aplicantes_nuevos: list, cached_resultados: list):
         await evaluar_todos_async(aplicantes_nuevos, on_progress=on_progress)
 
         # Final save sorted
-        all_resultados = sorted(nuevos_resultados, key=lambda x: x["evaluacion"]["score"], reverse=True)
+        all_resultados = sorted(nuevos_resultados, key=_safe_score, reverse=True)
         with open(RESULTADOS_FILE, "w", encoding="utf-8") as f:
             json.dump(all_resultados, f, ensure_ascii=False, indent=2)
 

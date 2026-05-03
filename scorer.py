@@ -70,8 +70,20 @@ FALLBACK_EVALUACION = {
 }
 
 
+def _parse_json_response(raw: str) -> dict:
+    """Extract and parse JSON from model response, handling extra text around the object."""
+    raw = raw.strip()
+    # Find first { and last } to extract the JSON object regardless of surrounding text
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start == -1 or end == -1:
+        raise ValueError(f"No JSON object found in response: {raw[:200]}")
+    return json.loads(raw[start:end + 1])
+
+
 async def evaluar_aplicante_async(aplicante: dict) -> dict:
-    enrichment = enriquecer_aplicante(aplicante)
+    loop = asyncio.get_event_loop()
+    enrichment = await loop.run_in_executor(None, enriquecer_aplicante, aplicante)
     info_publica = formatear_para_scorer(enrichment)
 
     prompt = f"""
@@ -98,16 +110,19 @@ Devolvé solo el JSON, sin texto adicional, sin bloques de código.
     )
 
     raw = message.content[0].text.strip()
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
+    return _parse_json_response(raw)
 
-    return json.loads(raw.strip())
+
+def _safe_score(r: dict) -> float:
+    """Safe score extraction — returns 0.0 if score is missing or non-numeric."""
+    try:
+        return float(r["evaluacion"]["score"])
+    except (TypeError, ValueError, KeyError):
+        return 0.0
 
 
 async def evaluar_todos_async(aplicantes: list, on_progress=None) -> list:
-    semaphore = asyncio.Semaphore(5)
+    semaphore = asyncio.Semaphore(2)
     resultados = []
 
     async def eval_one(aplicante):
@@ -125,7 +140,7 @@ async def evaluar_todos_async(aplicantes: list, on_progress=None) -> list:
     tasks = [eval_one(a) for a in aplicantes]
     resultados = await asyncio.gather(*tasks)
     resultados = list(resultados)
-    resultados.sort(key=lambda x: x["evaluacion"]["score"], reverse=True)
+    resultados.sort(key=_safe_score, reverse=True)
     return resultados
 
 
