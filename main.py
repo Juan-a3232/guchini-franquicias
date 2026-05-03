@@ -18,7 +18,14 @@ from data_loader import load_candidates
 
 app = FastAPI()
 
-ESTADOS_FILE = "estados.json"
+# ─── Persistent storage paths ─────────────────────────────────────────────────
+# DATA_DIR apunta al Railway Volume si está configurado, sino usa directorio actual.
+# Esto hace que resultados.json y estados.json sobrevivan a los deploys.
+DATA_DIR = os.environ.get("DATA_DIR", ".")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+RESULTADOS_FILE = os.path.join(DATA_DIR, "resultados.json")
+ESTADOS_FILE    = os.path.join(DATA_DIR, "estados.json")
 
 # ─── Evaluation progress state ────────────────────────────────────────────────
 eval_status = {
@@ -48,7 +55,7 @@ def load_estados():
     return {}
 
 
-def save_estados(estados):
+def save_estados(estados: dict):
     with open(ESTADOS_FILE, "w", encoding="utf-8") as f:
         json.dump(estados, f, ensure_ascii=False, indent=2)
 
@@ -70,17 +77,17 @@ def merge_estados(resultados):
 
 def _ids_in_cache() -> set:
     """Returns the set of IDs that already have a result in resultados.json."""
-    if not os.path.exists("resultados.json"):
+    if not os.path.exists(RESULTADOS_FILE):
         return set()
-    with open("resultados.json", encoding="utf-8") as f:
+    with open(RESULTADOS_FILE, encoding="utf-8") as f:
         cached = json.load(f)
     return {r.get("id") for r in cached if r.get("id") is not None}
 
 
 def _load_cache() -> list:
-    if not os.path.exists("resultados.json"):
+    if not os.path.exists(RESULTADOS_FILE):
         return []
-    with open("resultados.json", encoding="utf-8") as f:
+    with open(RESULTADOS_FILE, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -105,7 +112,7 @@ async def run_evaluation_task(aplicantes_nuevos: list, cached_resultados: list):
         # Save incrementally after every 10 candidates
         if eval_status["done"] % 10 == 0 or eval_status["done"] == eval_status["total"]:
             sorted_resultados = sorted(nuevos_resultados, key=lambda x: x["evaluacion"]["score"], reverse=True)
-            with open("resultados.json", "w", encoding="utf-8") as f:
+            with open(RESULTADOS_FILE, "w", encoding="utf-8") as f:
                 json.dump(sorted_resultados, f, ensure_ascii=False, indent=2)
 
     try:
@@ -113,7 +120,7 @@ async def run_evaluation_task(aplicantes_nuevos: list, cached_resultados: list):
 
         # Final save sorted
         all_resultados = sorted(nuevos_resultados, key=lambda x: x["evaluacion"]["score"], reverse=True)
-        with open("resultados.json", "w", encoding="utf-8") as f:
+        with open(RESULTADOS_FILE, "w", encoding="utf-8") as f:
             json.dump(all_resultados, f, ensure_ascii=False, indent=2)
 
         print(f"[scorer] Evaluación completa: {eval_status['done']} nuevos + {len(cached_resultados)} en caché = {len(all_resultados)} total")
@@ -128,10 +135,14 @@ async def run_evaluation_task(aplicantes_nuevos: list, cached_resultados: list):
 
 @app.on_event("startup")
 async def startup_event():
-    if not os.path.exists("resultados.json"):
-        print("[startup] No hay resultados en caché — evaluando en background...")
-        aplicantes = await asyncio.get_event_loop().run_in_executor(None, get_aplicantes)
-        asyncio.create_task(run_evaluation_task(aplicantes, []))
+    # NO auto-evaluar en startup — Railway borra el filesystem en cada deploy,
+    # lo que causaba que se disparara una reevaluación completa (y costosa) en
+    # cada push de código. Los datos se persisten en DATA_DIR (Railway Volume).
+    # La evaluación se dispara manualmente desde el dashboard.
+    if os.path.exists(RESULTADOS_FILE):
+        print(f"[startup] Cargando resultados existentes desde {RESULTADOS_FILE}")
+    else:
+        print(f"[startup] Sin datos en {RESULTADOS_FILE} — esperando evaluación manual.")
 
 
 # ─── API endpoints ─────────────────────────────────────────────────────────────
@@ -148,8 +159,8 @@ def get_eval_status():
 
 @app.get("/api/ranking")
 def get_ranking():
-    if os.path.exists("resultados.json"):
-        with open("resultados.json", encoding="utf-8") as f:
+    if os.path.exists(RESULTADOS_FILE):
+        with open(RESULTADOS_FILE, encoding="utf-8") as f:
             resultados = json.load(f)
         return merge_estados(resultados)
     return []
@@ -179,7 +190,7 @@ async def refresh_ranking():
 
     if not aplicantes_nuevos:
         # Nothing new — return cached results immediately
-        with open("resultados.json", encoding="utf-8") as f:
+        with open(RESULTADOS_FILE, encoding="utf-8") as f:
             resultados = json.load(f)
         return {"status": "no_new_candidates", "total_cached": len(resultados)}
 
@@ -201,8 +212,8 @@ async def refresh_full_ranking():
     if eval_status["running"]:
         return {"status": "already_running"}
 
-    if os.path.exists("resultados.json"):
-        os.remove("resultados.json")
+    if os.path.exists(RESULTADOS_FILE):
+        os.remove(RESULTADOS_FILE)
 
     loop = asyncio.get_event_loop()
     aplicantes = await loop.run_in_executor(None, get_aplicantes)
@@ -235,10 +246,10 @@ def update_nota(aplicante_id: int, body: dict = Body(...)):
 
 @app.get("/api/export/csv")
 def export_excel():
-    if not os.path.exists("resultados.json"):
+    if not os.path.exists(RESULTADOS_FILE):
         return {"error": "No hay datos"}
 
-    with open("resultados.json", encoding="utf-8") as f:
+    with open(RESULTADOS_FILE, encoding="utf-8") as f:
         resultados = json.load(f)
     resultados = merge_estados(resultados)
 
