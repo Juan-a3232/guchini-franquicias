@@ -125,8 +125,15 @@ async def run_evaluation_task(aplicantes_nuevos: list, cached_resultados: list):
     try:
         await evaluar_todos_async(aplicantes_nuevos, on_progress=on_progress)
 
-        # Final save sorted
-        all_resultados = sorted(nuevos_resultados, key=_safe_score, reverse=True)
+        # Final save: deduplicate by ID (keep last = freshly evaluated), then sort
+        seen_ids: set = set()
+        deduped = []
+        for r in reversed(nuevos_resultados):
+            rid = r.get("id")
+            if rid not in seen_ids:
+                seen_ids.add(rid)
+                deduped.append(r)
+        all_resultados = sorted(deduped, key=_safe_score, reverse=True)
         with open(RESULTADOS_FILE, "w", encoding="utf-8") as f:
             json.dump(all_resultados, f, ensure_ascii=False, indent=2)
 
@@ -187,7 +194,8 @@ async def refresh_ranking():
 
     loop = asyncio.get_event_loop()
     aplicantes = await loop.run_in_executor(None, get_aplicantes)
-    cached_resultados = _load_cache()
+    # Exclude FALLBACKs from the starting cache — they will be re-evaluated
+    cached_resultados = [r for r in _load_cache() if not _is_fallback(r)]
 
     cached_ids = _ids_in_cache()
     aplicantes_nuevos = [
