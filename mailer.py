@@ -15,8 +15,10 @@ def send_email(to: str, subject: str, body: str) -> bool:
         print(f"[mailer] RESEND_API_KEY no configurada — mail no enviado a {to}")
         return False
     try:
+        # Usar dominio verificado si está configurado, sino el de prueba de Resend
+        from_addr = f"Guchini Franquicias <{GMAIL_FROM}>" if os.environ.get("DOMAIN_VERIFIED") else "Guchini Franquicias <onboarding@resend.dev>"
         resend.Emails.send({
-            "from": f"Guchini Franquicias <{GMAIL_FROM}>",
+            "from": from_addr,
             "to": [to],
             "subject": subject,
             "text": body,
