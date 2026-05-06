@@ -1,27 +1,26 @@
-import smtplib
 import os
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import resend
 
-GMAIL_FROM         = os.environ.get("GMAIL_FROM", "")
-GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
-CALENDAR_LINK      = os.environ.get("CALENDAR_LINK", "")
-WELCOME_CUTOFF_ID  = int(os.environ.get("WELCOME_CUTOFF_ID", "683"))
+RESEND_API_KEY    = os.environ.get("RESEND_API_KEY", "")
+GMAIL_FROM        = os.environ.get("GMAIL_FROM", "franquicias@guchini.com.ar")
+CALENDAR_LINK     = os.environ.get("CALENDAR_LINK", "")
+WELCOME_CUTOFF_ID = int(os.environ.get("WELCOME_CUTOFF_ID", "683"))
+
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
 
 
 def send_email(to: str, subject: str, body: str) -> bool:
-    if not GMAIL_FROM or not GMAIL_APP_PASSWORD:
-        print(f"[mailer] Credenciales no configuradas — mail no enviado a {to}")
+    if not RESEND_API_KEY:
+        print(f"[mailer] RESEND_API_KEY no configurada — mail no enviado a {to}")
         return False
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"]    = f"Guchini Franquicias <{GMAIL_FROM}>"
-        msg["To"]      = to
-        msg.attach(MIMEText(body, "plain", "utf-8"))
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
-            server.login(GMAIL_FROM, GMAIL_APP_PASSWORD)
-            server.sendmail(GMAIL_FROM, to, msg.as_string())
+        resend.Emails.send({
+            "from": f"Guchini Franquicias <{GMAIL_FROM}>",
+            "to": [to],
+            "subject": subject,
+            "text": body,
+        })
         print(f"[mailer] ✓ Enviado a {to}: {subject}")
         return True
     except Exception as e:
