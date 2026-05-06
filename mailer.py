@@ -19,7 +19,7 @@ def send_email(to: str, subject: str, body: str) -> bool:
         msg["From"]    = f"Guchini Franquicias <{GMAIL_FROM}>"
         msg["To"]      = to
         msg.attach(MIMEText(body, "plain", "utf-8"))
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
             server.login(GMAIL_FROM, GMAIL_APP_PASSWORD)
             server.sendmail(GMAIL_FROM, to, msg.as_string())
         print(f"[mailer] ✓ Enviado a {to}: {subject}")
