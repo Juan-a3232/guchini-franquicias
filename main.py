@@ -15,6 +15,7 @@ load_dotenv()
 
 from scorer import evaluar_todos_async, _safe_score
 from data_loader import load_candidates
+from mailer import mail_bienvenida, mail_convocatoria, WELCOME_CUTOFF_ID, GMAIL_FROM
 
 app = FastAPI()
 
@@ -145,18 +146,62 @@ async def run_evaluation_task(aplicantes_nuevos: list, cached_resultados: list):
         eval_status["running"] = False
 
 
+# ─── Bienvenida loop ──────────────────────────────────────────────────────────
+
+async def bienvenida_loop():
+    """
+    Cada 5 minutos chequea si hay candidatos nuevos (ID > WELCOME_CUTOFF_ID)
+    que no hayan recibido el mail de bienvenida, y se los manda.
+    """
+    if not GMAIL_FROM:
+        print("[mailer] GMAIL_FROM no configurado — loop de bienvenida desactivado.")
+        return
+
+    print(f"[mailer] Loop de bienvenida activo (cutoff ID={WELCOME_CUTOFF_ID}, cada 5 min).")
+    while True:
+        await asyncio.sleep(300)  # 5 minutos
+        try:
+            loop = asyncio.get_event_loop()
+            aplicantes = await loop.run_in_executor(None, get_aplicantes)
+            estados = load_estados()
+            guardado = False
+
+            for a in aplicantes:
+                aid = a.get("id", 0)
+                if aid <= WELCOME_CUTOFF_ID:
+                    continue  # candidato anterior al corte
+                key = str(aid)
+                if estados.get(key, {}).get("bienvenida_enviada"):
+                    continue  # ya recibió el mail
+
+                email  = (a.get("email") or "").strip()
+                nombre = (a.get("nombre") or "").strip()
+                if not email or not nombre:
+                    continue
+
+                ok = mail_bienvenida(nombre, email)
+                if ok:
+                    if key not in estados:
+                        estados[key] = {}
+                    estados[key]["bienvenida_enviada"] = True
+                    guardado = True
+
+            if guardado:
+                save_estados(estados)
+
+        except Exception as e:
+            print(f"[mailer] Error en bienvenida_loop: {e}")
+
+
 # ─── Startup ──────────────────────────────────────────────────────────────────
 
 @app.on_event("startup")
 async def startup_event():
-    # NO auto-evaluar en startup — Railway borra el filesystem en cada deploy,
-    # lo que causaba que se disparara una reevaluación completa (y costosa) en
-    # cada push de código. Los datos se persisten en DATA_DIR (Railway Volume).
-    # La evaluación se dispara manualmente desde el dashboard.
     if os.path.exists(RESULTADOS_FILE):
         print(f"[startup] Cargando resultados existentes desde {RESULTADOS_FILE}")
     else:
         print(f"[startup] Sin datos en {RESULTADOS_FILE} — esperando evaluación manual.")
+    asyncio.create_task(bienvenida_loop())
 
 
 # ─── API endpoints ─────────────────────────────────────────────────────────────
@@ -243,8 +288,29 @@ def update_estado(aplicante_id: int, body: dict = Body(...)):
     key = str(aplicante_id)
     if key not in estados:
         estados[key] = {}
-    estados[key]["estado"] = body.get("estado", "Pendiente")
+
+    nuevo_estado   = body.get("estado", "Pendiente")
+    estado_anterior = estados[key].get("estado", "Pendiente")
+    estados[key]["estado"] = nuevo_estado
     save_estados(estados)
+
+    # MAIL 2 — se manda cuando Federico aprieta "Aprobar" (estado → Contactado)
+    # Solo se manda una vez por candidato.
+    if nuevo_estado == "Contactado" and estado_anterior != "Contactado" \
+            and not estados[key].get("convocatoria_enviada"):
+        if os.path.exists(RESULTADOS_FILE):
+            with open(RESULTADOS_FILE, encoding="utf-8") as f:
+                resultados = json.load(f)
+            candidato = next((r for r in resultados if r.get("id") == aplicante_id), None)
+            if candidato:
+                email  = (candidato.get("email") or "").strip()
+                nombre = (candidato.get("nombre") or "").strip()
+                if email and nombre:
+                    ok = mail_convocatoria(nombre, email)
+                    if ok:
+                        estados[key]["convocatoria_enviada"] = True
+                        save_estados(estados)
+
     return {"ok": True}
 
 
