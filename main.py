@@ -15,7 +15,9 @@ load_dotenv()
 
 from scorer import evaluar_todos_async, _safe_score
 from data_loader import load_candidates
-from mailer import mail_bienvenida, mail_convocatoria, WELCOME_CUTOFF_ID, GMAIL_FROM
+from mailer import mail_bienvenida, mail_convocatoria, WELCOME_CUTOFF_ID
+
+GMAIL_FROM = os.environ.get("GMAIL_FROM", "franquicias@guchini.com.ar")
 
 app = FastAPI()
 
