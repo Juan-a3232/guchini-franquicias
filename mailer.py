@@ -20,6 +20,7 @@ def send_email(to: str, subject: str, body: str) -> bool:
         resend.Emails.send({
             "from": from_addr,
             "to": [to],
+            "cc": [GMAIL_FROM],
             "subject": subject,
             "text": body,
         })
