@@ -451,10 +451,10 @@ def export_excel():
 
 @app.get("/api/test-mail")
 def test_mail(to: str):
-    """Endpoint temporal para probar que el SMTP funciona. Usar solo para testing."""
+    """Endpoint temporal para probar el envío de mails."""
     from mailer import send_email
-    ok = send_email(to, "Test mail · Guchini Franquicias", f"Este es un mail de prueba enviado desde {GMAIL_FROM}. Si llegó, el sistema funciona correctamente.")
-    return {"ok": ok, "from": GMAIL_FROM, "to": to}
+    ok, error = send_email(to, "Test mail · Guchini Franquicias", f"Este es un mail de prueba. Si llegó, el sistema funciona correctamente.")
+    return {"ok": ok, "error": error, "from": GMAIL_FROM, "to": to}
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

@@ -10,25 +10,26 @@ if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
 
 
-def send_email(to: str, subject: str, body: str) -> bool:
+def send_email(to: str, subject: str, body: str) -> tuple[bool, str]:
     if not RESEND_API_KEY:
-        print(f"[mailer] RESEND_API_KEY no configurada — mail no enviado a {to}")
-        return False
+        msg = f"RESEND_API_KEY no configurada"
+        print(f"[mailer] {msg}", flush=True)
+        return False, msg
     try:
-        # Usar dominio verificado si está configurado, sino el de prueba de Resend
         from_addr = f"Guchini Franquicias <{GMAIL_FROM}>" if os.environ.get("DOMAIN_VERIFIED") else "Guchini Franquicias <onboarding@resend.dev>"
-        resend.Emails.send({
+        client = resend.Resend(api_key=RESEND_API_KEY)
+        client.emails.send({
             "from": from_addr,
             "to": [to],
             "cc": [GMAIL_FROM],
             "subject": subject,
             "text": body,
         })
-        print(f"[mailer] ✓ Enviado a {to}: {subject}")
-        return True
+        print(f"[mailer] ✓ Enviado a {to}: {subject}", flush=True)
+        return True, "ok"
     except Exception as e:
-        print(f"[mailer] ✗ Error enviando a {to}: {e}")
-        return False
+        print(f"[mailer] ✗ Error enviando a {to}: {e}", flush=True)
+        return False, str(e)
 
 
 def mail_bienvenida(nombre: str, email: str) -> bool:
@@ -41,7 +42,8 @@ En los próximos días vamos a estar en contacto con novedades.
 
 ¡Saludos!
 Equipo Guchini"""
-    return send_email(email, subject, body)
+    ok, _ = send_email(email, subject, body)
+    return ok
 
 
 def mail_convocatoria(nombre: str, email: str) -> bool:
@@ -58,4 +60,5 @@ Para coordinar la reunión, agendá un slot en el calendario desde acá:
 
 ¡Esperamos tu mensaje!
 Guchini"""
-    return send_email(email, subject, body)
+    ok, _ = send_email(email, subject, body)
+    return ok
