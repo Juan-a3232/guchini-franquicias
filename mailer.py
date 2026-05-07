@@ -1,43 +1,43 @@
 import os
 import base64
+import requests
 from email.mime.text import MIMEText
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
 
-GMAIL_FROM        = os.environ.get("GMAIL_FROM", "franquicias@guchini.com.ar")
 CALENDAR_LINK     = os.environ.get("CALENDAR_LINK", "")
 WELCOME_CUTOFF_ID = int(os.environ.get("WELCOME_CUTOFF_ID", "683"))
 
-GMAIL_CLIENT_ID     = os.environ.get("GMAIL_CLIENT_ID", "")
-GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET", "")
-GMAIL_REFRESH_TOKEN = os.environ.get("GMAIL_REFRESH_TOKEN", "")
 
-
-def _gmail_service():
-    creds = Credentials(
-        token=None,
-        refresh_token=GMAIL_REFRESH_TOKEN,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=GMAIL_CLIENT_ID,
-        client_secret=GMAIL_CLIENT_SECRET,
-    )
-    return build("gmail", "v1", credentials=creds)
+def _get_access_token() -> str:
+    resp = requests.post("https://oauth2.googleapis.com/token", data={
+        "grant_type": "refresh_token",
+        "refresh_token": os.environ.get("GMAIL_REFRESH_TOKEN", ""),
+        "client_id":     os.environ.get("GMAIL_CLIENT_ID", ""),
+        "client_secret": os.environ.get("GMAIL_CLIENT_SECRET", ""),
+    })
+    resp.raise_for_status()
+    return resp.json()["access_token"]
 
 
 def send_email(to: str, subject: str, body: str) -> tuple[bool, str]:
-    if not GMAIL_REFRESH_TOKEN:
+    gmail_from = os.environ.get("GMAIL_FROM", "franquicias@guchini.com.ar")
+    if not os.environ.get("GMAIL_REFRESH_TOKEN"):
         msg = "GMAIL_REFRESH_TOKEN no configurado"
         print(f"[mailer] {msg}", flush=True)
         return False, msg
     try:
-        service = _gmail_service()
+        access_token = _get_access_token()
         mime = MIMEText(body)
-        mime["to"] = to
-        mime["from"] = f"Guchini Franquicias <{GMAIL_FROM}>"
+        mime["to"]      = to
+        mime["from"]    = f"Guchini Franquicias <{gmail_from}>"
         mime["subject"] = subject
-        mime["cc"] = GMAIL_FROM
+        mime["cc"]      = gmail_from
         raw = base64.urlsafe_b64encode(mime.as_bytes()).decode()
-        service.users().messages().send(userId="me", body={"raw": raw}).execute()
+        resp = requests.post(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"raw": raw},
+        )
+        resp.raise_for_status()
         print(f"[mailer] ✓ Enviado a {to}: {subject}", flush=True)
         return True, "ok"
     except Exception as e:
