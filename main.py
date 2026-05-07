@@ -456,8 +456,22 @@ def export_excel():
 def test_mail(to: str):
     """Endpoint temporal para probar el envío de mails."""
     from mailer import send_email
-    ok, error = send_email(to, "Test mail · Guchini Franquicias", f"Este es un mail de prueba. Si llegó, el sistema funciona correctamente.")
+    ok, error = send_email(to, "Test mail · Guchini Franquicias", "Este es un mail de prueba. Si llegó, el sistema funciona correctamente.")
     return {"ok": ok, "error": error, "from": GMAIL_FROM, "to": to}
+
+
+@app.get("/api/test-bienvenida")
+def test_bienvenida(nombre: str, to: str):
+    """Testea el mail de bienvenida (Mail 1)."""
+    ok = mail_bienvenida(nombre, to)
+    return {"ok": ok, "mail": "bienvenida", "to": to}
+
+
+@app.get("/api/test-convocatoria")
+def test_convocatoria(nombre: str, to: str):
+    """Testea el mail de convocatoria con calendario (Mail 2)."""
+    ok = mail_convocatoria(nombre, to)
+    return {"ok": ok, "mail": "convocatoria", "to": to}
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
