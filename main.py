@@ -203,9 +203,7 @@ async def startup_event():
         print(f"[startup] Cargando resultados existentes desde {RESULTADOS_FILE}")
     else:
         print(f"[startup] Sin datos en {RESULTADOS_FILE} — esperando evaluación manual.")
-    cid = os.environ.get("GMAIL_CLIENT_ID", "")
-    tok = os.environ.get("GMAIL_REFRESH_TOKEN", "")
-    print(f"[startup] GMAIL_CLIENT_ID len={len(cid)} | GMAIL_REFRESH_TOKEN len={len(tok)}", flush=True)
+
     asyncio.create_task(bienvenida_loop())
 
 

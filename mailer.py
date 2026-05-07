@@ -11,7 +11,7 @@ def _get_access_token() -> str:
     client_id     = os.environ.get("GMAIL_CLIENT_ID", "")
     client_secret = os.environ.get("GMAIL_CLIENT_SECRET", "")
     refresh_token = os.environ.get("GMAIL_REFRESH_TOKEN", "")
-    print(f"[mailer] OAuth debug — client_id len={len(client_id)} | refresh_token len={len(refresh_token)}", flush=True)
+
     resp = requests.post("https://oauth2.googleapis.com/token", data={
         "grant_type":    "refresh_token",
         "refresh_token": refresh_token,
