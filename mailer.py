@@ -1,30 +1,43 @@
 import os
-import resend
+import base64
+from email.mime.text import MIMEText
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
 
-RESEND_API_KEY    = os.environ.get("RESEND_API_KEY", "")
 GMAIL_FROM        = os.environ.get("GMAIL_FROM", "franquicias@guchini.com.ar")
 CALENDAR_LINK     = os.environ.get("CALENDAR_LINK", "")
 WELCOME_CUTOFF_ID = int(os.environ.get("WELCOME_CUTOFF_ID", "683"))
 
-if RESEND_API_KEY:
-    resend.api_key = RESEND_API_KEY
+GMAIL_CLIENT_ID     = os.environ.get("GMAIL_CLIENT_ID", "")
+GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET", "")
+GMAIL_REFRESH_TOKEN = os.environ.get("GMAIL_REFRESH_TOKEN", "")
+
+
+def _gmail_service():
+    creds = Credentials(
+        token=None,
+        refresh_token=GMAIL_REFRESH_TOKEN,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=GMAIL_CLIENT_ID,
+        client_secret=GMAIL_CLIENT_SECRET,
+    )
+    return build("gmail", "v1", credentials=creds)
 
 
 def send_email(to: str, subject: str, body: str) -> tuple[bool, str]:
-    if not RESEND_API_KEY:
-        msg = f"RESEND_API_KEY no configurada"
+    if not GMAIL_REFRESH_TOKEN:
+        msg = "GMAIL_REFRESH_TOKEN no configurado"
         print(f"[mailer] {msg}", flush=True)
         return False, msg
     try:
-        from_addr = f"Guchini Franquicias <{GMAIL_FROM}>" if os.environ.get("DOMAIN_VERIFIED") else "Guchini Franquicias <onboarding@resend.dev>"
-        client = resend.Resend(api_key=RESEND_API_KEY)
-        client.emails.send({
-            "from": from_addr,
-            "to": [to],
-            "cc": [GMAIL_FROM],
-            "subject": subject,
-            "text": body,
-        })
+        service = _gmail_service()
+        mime = MIMEText(body)
+        mime["to"] = to
+        mime["from"] = f"Guchini Franquicias <{GMAIL_FROM}>"
+        mime["subject"] = subject
+        mime["cc"] = GMAIL_FROM
+        raw = base64.urlsafe_b64encode(mime.as_bytes()).decode()
+        service.users().messages().send(userId="me", body={"raw": raw}).execute()
         print(f"[mailer] ✓ Enviado a {to}: {subject}", flush=True)
         return True, "ok"
     except Exception as e:
