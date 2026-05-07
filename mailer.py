@@ -8,13 +8,18 @@ WELCOME_CUTOFF_ID = int(os.environ.get("WELCOME_CUTOFF_ID", "683"))
 
 
 def _get_access_token() -> str:
+    client_id     = os.environ.get("GMAIL_CLIENT_ID", "")
+    client_secret = os.environ.get("GMAIL_CLIENT_SECRET", "")
+    refresh_token = os.environ.get("GMAIL_REFRESH_TOKEN", "")
+    print(f"[mailer] OAuth debug — client_id len={len(client_id)} | refresh_token len={len(refresh_token)}", flush=True)
     resp = requests.post("https://oauth2.googleapis.com/token", data={
-        "grant_type": "refresh_token",
-        "refresh_token": os.environ.get("GMAIL_REFRESH_TOKEN", ""),
-        "client_id":     os.environ.get("GMAIL_CLIENT_ID", ""),
-        "client_secret": os.environ.get("GMAIL_CLIENT_SECRET", ""),
+        "grant_type":    "refresh_token",
+        "refresh_token": refresh_token,
+        "client_id":     client_id,
+        "client_secret": client_secret,
     })
-    resp.raise_for_status()
+    if not resp.ok:
+        raise Exception(f"OAuth {resp.status_code}: {resp.text}")
     return resp.json()["access_token"]
 
 
