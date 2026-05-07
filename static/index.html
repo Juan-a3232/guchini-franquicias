@@ -911,7 +911,7 @@
   }
 
   function initCharts() {
-    const data = allData || [];
+    const data = (allData || []).filter(r => r.id > NUEVOS_CUTOFF_ID);
     const n = data.length || 1;
     const textColor = getTextColor();
     const mutedColor = getMutedColor();
