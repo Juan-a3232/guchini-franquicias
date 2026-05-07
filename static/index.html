@@ -439,6 +439,7 @@
     <div class="toolbar">
       <input class="search-input" type="text" placeholder="Buscar por nombre o ciudad..." oninput="filterCards()" id="searchInput" />
       <div class="filter-group">
+        <button class="filter-btn" onclick="setFilter('nuevos', this)">🆕 Nuevos</button>
         <button class="filter-btn active" onclick="setFilter('todos', this)">Todos</button>
         <button class="filter-btn" onclick="setFilter('APROBAR', this)">Aprobar</button>
         <button class="filter-btn" onclick="setFilter('REVISAR', this)">Revisar</button>
@@ -716,10 +717,13 @@
     filterCards();
   }
 
+  const NUEVOS_CUTOFF_ID = 683;
+
   function filterCards() {
     const query = document.getElementById('searchInput').value.toLowerCase();
     let filtered = allData;
-    if (currentFilter !== 'todos') filtered = filtered.filter(r => r.evaluacion.recomendacion === currentFilter);
+    if (currentFilter === 'nuevos') filtered = filtered.filter(r => r.id > NUEVOS_CUTOFF_ID);
+    else if (currentFilter !== 'todos') filtered = filtered.filter(r => r.evaluacion.recomendacion === currentFilter);
     if (query) filtered = filtered.filter(r => r.nombre.toLowerCase().includes(query) || r.ciudad.toLowerCase().includes(query));
     renderFiltered(filtered);
   }
