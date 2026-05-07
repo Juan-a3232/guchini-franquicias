@@ -439,13 +439,14 @@
     <div class="toolbar">
       <input class="search-input" type="text" placeholder="Buscar por nombre o ciudad..." oninput="filterCards()" id="searchInput" />
       <div class="filter-group">
-        <button class="filter-btn" onclick="setFilter('nuevos', this)">🆕 Nuevos</button>
-        <button class="filter-btn active" onclick="setFilter('todos', this)">Todos</button>
+        <button class="filter-btn active" onclick="setFilter('nuevos', this)">🆕 Nuevos</button>
+        <button class="filter-btn" onclick="setFilter('todos', this)">Todos</button>
         <button class="filter-btn" onclick="setFilter('APROBAR', this)">Aprobar</button>
         <button class="filter-btn" onclick="setFilter('REVISAR', this)">Revisar</button>
         <button class="filter-btn" onclick="setFilter('RECHAZAR', this)">Rechazar</button>
       </div>
-      <button class="export-btn" onclick="exportCSV()">⬇ Exportar Excel</button>
+      <button class="export-btn" onclick="exportCSV('new')">⬇ Pipeline activo</button>
+      <button class="export-btn" onclick="exportCSV('historical')" style="background:#6b7280">⬇ Histórico 683</button>
       <button class="refresh-btn" id="refreshBtn" onclick="refreshRanking()">↻ Actualizar evaluación</button>
       <button class="refresh-btn" id="refreshFullBtn" onclick="refreshFullRanking()" style="display:none">↺ Re-evaluar todo</button>
     </div>
@@ -580,7 +581,7 @@
 
 <script>
   let allData = [];
-  let currentFilter = 'todos';
+  let currentFilter = 'nuevos';
   /* ==============================
      TAB SWITCHING
   ============================== */
@@ -669,7 +670,7 @@
     setTimeout(pollStatus, 800);
   }
 
-  function exportCSV() { window.open('/api/export/csv', '_blank'); }
+  function exportCSV(filter) { window.open('/api/export/csv?filter=' + (filter || ''), '_blank'); }
 
   async function refreshFullRanking() {
     const pwd = prompt('⚠️ Re-evaluar todo borra el caché y cuesta ~$15. Ingresá la contraseña para confirmar:');
@@ -729,10 +730,11 @@
   }
 
   function renderRanking(data) {
-    document.getElementById('total').textContent = data.length;
-    document.getElementById('aprobados').textContent = data.filter(d => d.evaluacion.recomendacion === 'APROBAR').length;
-    document.getElementById('revision').textContent = data.filter(d => d.evaluacion.recomendacion === 'REVISAR').length;
-    document.getElementById('rechazados').textContent = data.filter(d => d.evaluacion.recomendacion === 'RECHAZAR').length;
+    const nuevos = data.filter(d => d.id > NUEVOS_CUTOFF_ID);
+    document.getElementById('total').textContent = nuevos.length;
+    document.getElementById('aprobados').textContent = nuevos.filter(d => d.evaluacion.recomendacion === 'APROBAR').length;
+    document.getElementById('revision').textContent = nuevos.filter(d => d.evaluacion.recomendacion === 'REVISAR').length;
+    document.getElementById('rechazados').textContent = nuevos.filter(d => d.evaluacion.recomendacion === 'RECHAZAR').length;
     filterCards();
   }
 

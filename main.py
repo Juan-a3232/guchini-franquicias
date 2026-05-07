@@ -329,13 +329,18 @@ def update_nota(aplicante_id: int, body: dict = Body(...)):
 
 
 @app.get("/api/export/csv")
-def export_excel():
+def export_excel(filter: str = ""):
     if not os.path.exists(RESULTADOS_FILE):
         return {"error": "No hay datos"}
 
     with open(RESULTADOS_FILE, encoding="utf-8") as f:
         resultados = json.load(f)
     resultados = merge_estados(resultados)
+
+    if filter == "new":
+        resultados = [r for r in resultados if r.get("id", 0) > WELCOME_CUTOFF_ID]
+    elif filter == "historical":
+        resultados = [r for r in resultados if r.get("id", 0) <= WELCOME_CUTOFF_ID]
 
     BLACK = "1A1A1A"
     WHITE = "FFFFFF"
