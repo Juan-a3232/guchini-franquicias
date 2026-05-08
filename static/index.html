@@ -602,7 +602,8 @@
   ============================== */
   async function loadRanking() {
     const res = await fetch('/api/ranking');
-    allData = await res.json();
+    const raw = await res.json();
+    allData = raw.filter(r => r.id > NUEVOS_CUTOFF_ID);
     if (allData.length === 0) {
       document.getElementById('lista').innerHTML = '<div class="loading">No hay evaluaciones todavía. Presioná "↺ Re-evaluar todo" para empezar.</div>';
     } else {
@@ -658,7 +659,8 @@
       } else {
         // Done — load results
         const rankRes = await fetch('/api/ranking');
-        allData = await rankRes.json();
+        const raw = await rankRes.json();
+        allData = raw.filter(r => r.id > NUEVOS_CUTOFF_ID);
         renderRanking(allData);
         btn.disabled = false;
         btn.textContent = '↻ Actualizar evaluación';
@@ -700,7 +702,8 @@
         setTimeout(pollStatus, 1500);
       } else {
         const rankRes = await fetch('/api/ranking');
-        allData = await rankRes.json();
+        const raw = await rankRes.json();
+        allData = raw.filter(r => r.id > NUEVOS_CUTOFF_ID);
         renderRanking(allData);
         btn.disabled = false;
         refreshBtn.disabled = false;
