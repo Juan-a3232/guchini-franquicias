@@ -45,14 +45,15 @@ _STOPWORDS = {
     "guchini",
 }
 _GASTRO_PREFIX = (
-    r"(?:Pizzer[ií]a|Caf[eé]|Cafeter[ií]a|Restaurante|Resto|Bar|"
+    r"(?:Pizzer[ií]a|Caf[eé]|Cafeter[ií]a|Restaurante|Resto|"
     r"Hamburgueser[ií]a|Helader[ií]a|Panader[ií]a|Sandwicher[ií]a|Parrilla|"
-    r"Heladeria|Cerveceria|Vermutería|Vermuteria)"
+    r"Heladeria|Cerveceria|Vermuter[ií]a|Bodeg[ao]|Rotiser[ií]a)"
 )
-# Requiere prefijo gastronómico O al menos 2 palabras en Title Case para ser nombre de negocio
+# SOLO reconoce negocios con prefijo gastronómico explícito en mayúscula.
+# Ej: "Pizzería La Forcheta" ✓ — "tengo una pizzería" ✗ — "Además" ✗
 _NAME_PATTERN = re.compile(
-    rf"((?:{_GASTRO_PREFIX})\s*[A-ZÁÉÍÓÚÑ][\wñáéíóúü]*(?:\s+[A-ZÁÉÍÓÚÑ][\wñáéíóúü]+){{0,2}}"
-    rf"|[A-ZÁÉÍÓÚÑ][\wñáéíóúü]{{2,}}\s+[A-ZÁÉÍÓÚÑ][\wñáéíóúü]{{2,}}(?:\s+[A-ZÁÉÍÓÚÑ][\wñáéíóúü]+){{0,1}})"
+    rf"({_GASTRO_PREFIX}\s+[A-ZÁÉÍÓÚÑ][\wñáéíóúü]+(?:\s+[A-ZÁÉÍÓÚÑ][\wñáéíóúü]+){{0,2}})",
+    re.UNICODE,
 )
 
 
@@ -94,28 +95,21 @@ def _match_ciudad(texto: str, ciudad: str) -> bool:
 
 
 def _extract_business_names(experiencia: str, max_results: int = 3) -> list[str]:
+    """
+    Extrae nombres de negocios SOLO si tienen prefijo gastronómico en mayúscula.
+    Ej: "Pizzería La Forcheta" ✓ | "tengo una pizzería" ✗ | "Además" ✗
+    """
     if not experiencia:
         return []
-    parts = re.split(r",|;|\.|\n|\s+y\s+|\s+e\s+|\s+-\s+|\|", experiencia)
     candidates, seen = [], set()
-    for part in parts:
-        part = part.strip().rstrip(".,;:")
-        if not part or len(part) > 80:
-            continue
-        for match in _NAME_PATTERN.finditer(part):
-            name = match.group(1).strip()
-            words = name.split()
-            while words and words[0].lower() in _LEADING_NOISE:
-                words = words[1:]
-            if not words:
-                continue
-            name = " ".join(words)
-            key = name.lower()
-            if key not in seen and len(name) >= 4 and key not in _STOPWORDS:
-                seen.add(key)
-                candidates.append(name)
-                if len(candidates) >= max_results:
-                    return candidates
+    for match in _NAME_PATTERN.finditer(experiencia):
+        name = match.group(1).strip()
+        key = name.lower()
+        if key not in seen and len(name) >= 6:
+            seen.add(key)
+            candidates.append(name)
+            if len(candidates) >= max_results:
+                break
     return candidates
 
 
