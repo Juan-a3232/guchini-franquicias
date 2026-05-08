@@ -26,19 +26,33 @@ _LEADING_NOISE = {
     "socio", "fundador", "propietario",
 }
 _STOPWORDS = {
+    # Ciudades
     "argentina", "mendoza", "cordoba", "córdoba", "tucuman", "tucumán",
     "rosario", "salta", "buenos aires", "caba", "capital", "federal",
     "mar del plata", "la plata", "san juan", "santa fe", "bahia blanca",
-    "bahía blanca", "neuquen", "neuquén", "gastronomia", "gastronomía",
-    "emprendimiento", "emprendedor", "experiencia", "años", "local",
-    "negocio", "comercio",
+    "bahía blanca", "neuquen", "neuquén",
+    # Términos gastronómicos genéricos
+    "gastronomia", "gastronomía", "emprendimiento", "emprendedor",
+    "experiencia", "años", "local", "negocio", "comercio",
+    # Conectores y palabras de inicio de oración (no son nombres de negocio)
+    "además", "ademas", "también", "tambien", "porque", "pero", "hace",
+    "como", "cuando", "donde", "quien", "cual", "esto", "esta", "estas",
+    "para", "desde", "hasta", "entre", "sobre", "bajo", "creo", "tengo",
+    "tiene", "tuve", "sido", "estar", "siendo", "quiero", "puedo", "puede",
+    "tiene", "con", "sin", "por", "una", "uno", "del", "los", "las",
+    "soy", "fue", "fui", "hay", "hoy", "así", "asi", "si", "no", "ya",
+    # Marca que quieren franquiciar (no es su negocio)
+    "guchini",
 }
 _GASTRO_PREFIX = (
     r"(?:Pizzer[ií]a|Caf[eé]|Cafeter[ií]a|Restaurante|Resto|Bar|"
-    r"Hamburgueser[ií]a|Helader[ií]a|Panader[ií]a|Sandwicher[ií]a|Parrilla)"
+    r"Hamburgueser[ií]a|Helader[ií]a|Panader[ií]a|Sandwicher[ií]a|Parrilla|"
+    r"Heladeria|Cerveceria|Vermutería|Vermuteria)"
 )
+# Requiere prefijo gastronómico O al menos 2 palabras en Title Case para ser nombre de negocio
 _NAME_PATTERN = re.compile(
-    rf"((?:{_GASTRO_PREFIX})?\s*[A-ZÁÉÍÓÚÑ][\wñáéíóúü]+(?:\s+[A-ZÁÉÍÓÚÑ][\wñáéíóúü]+){{0,2}})"
+    rf"((?:{_GASTRO_PREFIX})\s*[A-ZÁÉÍÓÚÑ][\wñáéíóúü]*(?:\s+[A-ZÁÉÍÓÚÑ][\wñáéíóúü]+){{0,2}}"
+    rf"|[A-ZÁÉÍÓÚÑ][\wñáéíóúü]{{2,}}\s+[A-ZÁÉÍÓÚÑ][\wñáéíóúü]{{2,}}(?:\s+[A-ZÁÉÍÓÚÑ][\wñáéíóúü]+){{0,1}})"
 )
 
 
