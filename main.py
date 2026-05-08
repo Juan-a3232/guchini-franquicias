@@ -16,11 +16,13 @@ load_dotenv()
 from scorer import evaluar_todos_async, _safe_score
 from data_loader import load_candidates
 from mailer import mail_bienvenida, mail_convocatoria
+from events_sync import router as events_sync_router
 
 GMAIL_FROM        = os.environ.get("GMAIL_FROM", "franquicias@guchini.com.ar")
 FORM_REOPEN_DATE  = os.environ.get("FORM_REOPEN_DATE", "2026-05-07")  # solo candidatos desde esta fecha
 
 app = FastAPI()
+app.include_router(events_sync_router)
 
 # ─── Persistent storage paths ─────────────────────────────────────────────────
 # DATA_DIR apunta al Railway Volume si está configurado, sino usa directorio actual.
