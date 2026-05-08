@@ -832,6 +832,11 @@
               </select>
             </div>
 
+            ${(r.fuentes_web && r.fuentes_web.length) ? `
+            <div class="notes-label" style="margin-bottom:8px">Fuentes web encontradas</div>
+            <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:18px">
+              ${r.fuentes_web.map(url => `<a href="${url}" target="_blank" rel="noopener" style="font-size:0.76rem;color:var(--accent);word-break:break-all;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">🔗 ${url}</a>`).join('')}
+            </div>` : ''}
             <div class="notes-label">Notas internas</div>
             <textarea class="notes-area" id="nota-${r.id}" placeholder="Agregar comentarios sobre este aplicante...">${nota}</textarea>
             <button class="save-nota-btn" onclick="saveNota(${r.id})">Guardar nota</button>
