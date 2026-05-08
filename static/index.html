@@ -749,10 +749,7 @@
       return;
     }
 
-    const globalIndex = {};
-    allData.forEach((r, i) => { globalIndex[r.id] = i + 1; });
-
-    document.getElementById('lista').innerHTML = data.map(r => {
+    document.getElementById('lista').innerHTML = data.map((r, idx) => {
       const e = r.evaluacion;
       const score = e.score;
       const fillClass = e.recomendacion === 'APROBAR' ? 'high' : e.recomendacion === 'REVISAR' ? 'mid' : 'low';
@@ -760,7 +757,7 @@
       const flags = (e.red_flags || []).map(f => `<span class="tag flag">${f}</span>`).join('');
       const estado = r.estado || 'Pendiente';
       const nota = r.nota || '';
-      const rank = globalIndex[r.id];
+      const rank = idx + 1;
       const fecha = r.fecha_aplicacion ? new Date(r.fecha_aplicacion).toLocaleDateString('es-AR', {day:'numeric', month:'short', year:'numeric'}) : '';
       const diasDesde = r.fecha_aplicacion ? Math.floor((new Date() - new Date(r.fecha_aplicacion)) / (1000*60*60*24)) : null;
 
