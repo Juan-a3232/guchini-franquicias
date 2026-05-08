@@ -465,6 +465,30 @@ def test_mail(to: str):
     return {"ok": ok, "error": error, "from": GMAIL_FROM, "to": to}
 
 
+@app.post("/api/ranking/refresh-nuevos")
+async def refresh_nuevos():
+    """Re-evalúa solo los candidatos con ID > WELCOME_CUTOFF_ID (borra su caché)."""
+    global eval_status
+    if eval_status["running"]:
+        return {"status": "already_running"}
+
+    if os.path.exists(RESULTADOS_FILE):
+        with open(RESULTADOS_FILE, encoding="utf-8") as f:
+            todos = json.load(f)
+        # Mantener solo los viejos en caché
+        solo_viejos = [r for r in todos if r.get("id", 0) <= WELCOME_CUTOFF_ID]
+        with open(RESULTADOS_FILE, "w", encoding="utf-8") as f:
+            json.dump(solo_viejos, f, ensure_ascii=False, indent=2)
+
+    loop = asyncio.get_event_loop()
+    aplicantes = await loop.run_in_executor(None, get_aplicantes)
+    nuevos = [a for a in aplicantes if a.get("id", 0) > WELCOME_CUTOFF_ID]
+    cached = [r for r in _load_cache() if not _is_fallback(r)]
+
+    asyncio.create_task(run_evaluation_task(nuevos, cached))
+    return {"status": "started", "nuevos": len(nuevos)}
+
+
 @app.get("/api/test-bienvenida")
 def test_bienvenida(nombre: str, to: str):
     """Testea el mail de bienvenida (Mail 1)."""
