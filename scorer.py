@@ -121,15 +121,14 @@ async def evaluar_todos_async(aplicantes: list, on_progress=None) -> list:
                 print(f"[scorer] Error evaluando {aplicante.get('nombre', '?')}: {e}")
                 evaluacion = FALLBACK_EVALUACION.copy()
 
-            # Buscar redes sociales en paralelo (no afecta el score)
+            # Buscar redes sociales / negocios en paralelo (no afecta el score)
             try:
                 loop = asyncio.get_event_loop()
-                enrichment = await loop.run_in_executor(None, buscar_redes_sociales, aplicante)
-                fuentes = enrichment.get("fuentes", [])
+                fuentes_web = await loop.run_in_executor(None, buscar_redes_sociales, aplicante)
             except Exception:
-                fuentes = []
+                fuentes_web = {"perfil": [], "negocios": []}
 
-            resultado = {**aplicante, "evaluacion": evaluacion, "fuentes_web": fuentes}
+            resultado = {**aplicante, "evaluacion": evaluacion, "fuentes_web": fuentes_web}
             if on_progress:
                 on_progress(resultado)
             return resultado

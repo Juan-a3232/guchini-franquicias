@@ -829,11 +829,21 @@
               </select>
             </div>
 
-            ${(r.fuentes_web && r.fuentes_web.length) ? `
-            <div class="notes-label" style="margin-bottom:8px">Fuentes web encontradas</div>
-            <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:18px">
-              ${r.fuentes_web.map(url => `<a href="${url}" target="_blank" rel="noopener" style="font-size:0.76rem;color:var(--accent);word-break:break-all;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">🔗 ${url}</a>`).join('')}
-            </div>` : ''}
+            ${(() => {
+              const fw = r.fuentes_web || {};
+              const perfil = Array.isArray(fw.perfil) ? fw.perfil : (Array.isArray(fw) ? fw : []);
+              const negocios = Array.isArray(fw.negocios) ? fw.negocios.filter(n => n.urls && n.urls.length) : [];
+              if (!perfil.length && !negocios.length) return '';
+              const linkEl = url => `<a href="${url}" target="_blank" rel="noopener" style="font-size:0.76rem;color:var(--accent);word-break:break-all;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">🔗 ${url}</a>`;
+              let html = '';
+              if (perfil.length) {
+                html += `<div class="notes-label" style="margin-bottom:6px">Perfil del candidato</div><div style="display:flex;flex-direction:column;gap:4px;margin-bottom:14px">${perfil.map(linkEl).join('')}</div>`;
+              }
+              negocios.forEach(n => {
+                html += `<div class="notes-label" style="margin-bottom:6px">Negocio: ${n.nombre}</div><div style="display:flex;flex-direction:column;gap:4px;margin-bottom:14px">${n.urls.map(linkEl).join('')}</div>`;
+              });
+              return html;
+            })()}
             <div class="notes-label">Notas internas</div>
             <textarea class="notes-area" id="nota-${r.id}" placeholder="Agregar comentarios sobre este aplicante...">${nota}</textarea>
             <button class="save-nota-btn" onclick="saveNota(${r.id})">Guardar nota</button>
