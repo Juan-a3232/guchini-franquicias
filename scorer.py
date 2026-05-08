@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 from anthropic import AsyncAnthropic
+from enricher import buscar_redes_sociales
 
 client = AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
@@ -119,7 +120,16 @@ async def evaluar_todos_async(aplicantes: list, on_progress=None) -> list:
             except Exception as e:
                 print(f"[scorer] Error evaluando {aplicante.get('nombre', '?')}: {e}")
                 evaluacion = FALLBACK_EVALUACION.copy()
-            resultado = {**aplicante, "evaluacion": evaluacion}
+
+            # Buscar redes sociales en paralelo (no afecta el score)
+            try:
+                loop = asyncio.get_event_loop()
+                enrichment = await loop.run_in_executor(None, buscar_redes_sociales, aplicante)
+                fuentes = enrichment.get("fuentes", [])
+            except Exception:
+                fuentes = []
+
+            resultado = {**aplicante, "evaluacion": evaluacion, "fuentes_web": fuentes}
             if on_progress:
                 on_progress(resultado)
             return resultado
