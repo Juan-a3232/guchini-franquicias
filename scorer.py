@@ -2,7 +2,6 @@ import asyncio
 import json
 import os
 from anthropic import AsyncAnthropic
-from enricher import enriquecer_aplicante, formatear_para_scorer
 
 client = AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
@@ -81,27 +80,12 @@ def _parse_json_response(raw: str) -> dict:
     return json.loads(raw[start:end + 1])
 
 
-async def evaluar_aplicante_async(aplicante: dict) -> tuple[dict, list[str]]:
-    loop = asyncio.get_event_loop()
-    enrichment = await loop.run_in_executor(None, enriquecer_aplicante, aplicante)
-    info_publica = formatear_para_scorer(enrichment)
-    fuentes = enrichment.get("fuentes", [])
-
+async def evaluar_aplicante_async(aplicante: dict) -> dict:
     prompt = f"""
 {CRITERIOS_GUCHINI}
 
 Aplicante a evaluar:
 {json.dumps(aplicante, ensure_ascii=False, indent=2)}
-
-Información pública encontrada en internet sobre este candidato:
-{info_publica}
-
-ADVERTENCIA: la info de internet puede ser de otra persona con el mismo nombre.
-SOLO usá datos web que confirmen exactamente lo que el candidato declaró (mismo nombre de negocio, misma ciudad).
-Si la info web menciona cosas que el candidato NO declaró (otros negocios, logros, menciones en medios), IGNORALA — probablemente es otra persona.
-Usá internet únicamente para VERIFICAR lo declarado, nunca para AGREGAR información nueva.
-Si el negocio declarado aparece online con buenas reseñas, es señal positiva.
-Si no encontraste nada de lo declarado, mencionalo como red flag menor (no como descarte).
 
 Devolvé solo el JSON, sin texto adicional, sin bloques de código.
 """
@@ -113,7 +97,7 @@ Devolvé solo el JSON, sin texto adicional, sin bloques de código.
     )
 
     raw = message.content[0].text.strip()
-    return _parse_json_response(raw), fuentes
+    return _parse_json_response(raw)
 
 
 def _safe_score(r: dict) -> float:
@@ -131,12 +115,11 @@ async def evaluar_todos_async(aplicantes: list, on_progress=None) -> list:
     async def eval_one(aplicante):
         async with semaphore:
             try:
-                evaluacion, fuentes = await evaluar_aplicante_async(aplicante)
+                evaluacion = await evaluar_aplicante_async(aplicante)
             except Exception as e:
                 print(f"[scorer] Error evaluando {aplicante.get('nombre', '?')}: {e}")
                 evaluacion = FALLBACK_EVALUACION.copy()
-                fuentes = []
-            resultado = {**aplicante, "evaluacion": evaluacion, "fuentes_web": fuentes}
+            resultado = {**aplicante, "evaluacion": evaluacion}
             if on_progress:
                 on_progress(resultado)
             return resultado

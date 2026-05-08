@@ -603,7 +603,7 @@
   async function loadRanking() {
     const res = await fetch('/api/ranking');
     const raw = await res.json();
-    allData = raw.filter(r => r.id > NUEVOS_CUTOFF_ID);
+    allData = raw;
     if (allData.length === 0) {
       document.getElementById('lista').innerHTML = '<div class="loading">No hay evaluaciones todavía. Presioná "↺ Re-evaluar todo" para empezar.</div>';
     } else {
@@ -660,7 +660,7 @@
         // Done — load results
         const rankRes = await fetch('/api/ranking');
         const raw = await rankRes.json();
-        allData = raw.filter(r => r.id > NUEVOS_CUTOFF_ID);
+        allData = raw;
         renderRanking(allData);
         btn.disabled = false;
         btn.textContent = '↻ Actualizar evaluación';
@@ -703,7 +703,7 @@
       } else {
         const rankRes = await fetch('/api/ranking');
         const raw = await rankRes.json();
-        allData = raw.filter(r => r.id > NUEVOS_CUTOFF_ID);
+        allData = raw;
         renderRanking(allData);
         btn.disabled = false;
         refreshBtn.disabled = false;
@@ -721,19 +721,19 @@
     filterCards();
   }
 
-  const NUEVOS_CUTOFF_ID = 683;
+  const FORM_REOPEN_DATE = '2026-05-07';
 
   function filterCards() {
     const query = document.getElementById('searchInput').value.toLowerCase();
     let filtered = allData;
-    if (currentFilter === 'nuevos') filtered = filtered.filter(r => r.id > NUEVOS_CUTOFF_ID);
+    if (currentFilter === 'nuevos') filtered = filtered.filter(r => (r.fecha_aplicacion || '') >= FORM_REOPEN_DATE);
     else if (currentFilter !== 'todos') filtered = filtered.filter(r => r.evaluacion.recomendacion === currentFilter);
     if (query) filtered = filtered.filter(r => r.nombre.toLowerCase().includes(query) || r.ciudad.toLowerCase().includes(query));
     renderFiltered(filtered);
   }
 
   function renderRanking(data) {
-    const nuevos = data.filter(d => d.id > NUEVOS_CUTOFF_ID);
+    const nuevos = data.filter(d => (d.fecha_aplicacion || '') >= FORM_REOPEN_DATE);
     document.getElementById('total').textContent = nuevos.length;
     document.getElementById('aprobados').textContent = nuevos.filter(d => d.evaluacion.recomendacion === 'APROBAR').length;
     document.getElementById('revision').textContent = nuevos.filter(d => d.evaluacion.recomendacion === 'REVISAR').length;
@@ -919,7 +919,7 @@
   }
 
   function initCharts() {
-    const data = (allData || []).filter(r => r.id > NUEVOS_CUTOFF_ID);
+    const data = (allData || []).filter(r => (r.fecha_aplicacion || '') >= FORM_REOPEN_DATE);
     const n = data.length || 1;
     const textColor = getTextColor();
     const mutedColor = getMutedColor();

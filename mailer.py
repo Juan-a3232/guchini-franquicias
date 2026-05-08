@@ -3,8 +3,7 @@ import base64
 import requests
 from email.mime.text import MIMEText
 
-CALENDAR_LINK     = os.environ.get("CALENDAR_LINK", "")
-WELCOME_CUTOFF_ID = int(os.environ.get("WELCOME_CUTOFF_ID", "683"))
+CALENDAR_LINK = os.environ.get("CALENDAR_LINK", "")
 
 
 def _get_access_token() -> str:

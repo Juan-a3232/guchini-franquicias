@@ -15,9 +15,10 @@ load_dotenv()
 
 from scorer import evaluar_todos_async, _safe_score
 from data_loader import load_candidates
-from mailer import mail_bienvenida, mail_convocatoria, WELCOME_CUTOFF_ID
+from mailer import mail_bienvenida, mail_convocatoria
 
-GMAIL_FROM = os.environ.get("GMAIL_FROM", "franquicias@guchini.com.ar")
+GMAIL_FROM        = os.environ.get("GMAIL_FROM", "franquicias@guchini.com.ar")
+FORM_REOPEN_DATE  = os.environ.get("FORM_REOPEN_DATE", "2026-05-07")  # solo candidatos desde esta fecha
 
 app = FastAPI()
 
@@ -152,14 +153,14 @@ async def run_evaluation_task(aplicantes_nuevos: list, cached_resultados: list):
 
 async def bienvenida_loop():
     """
-    Cada 5 minutos chequea si hay candidatos nuevos (ID > WELCOME_CUTOFF_ID)
+    Cada 5 minutos chequea si hay candidatos nuevos (fecha >= FORM_REOPEN_DATE)
     que no hayan recibido el mail de bienvenida, y se los manda.
     """
     if not GMAIL_FROM:
         print("[mailer] GMAIL_FROM no configurado — loop de bienvenida desactivado.")
         return
 
-    print(f"[mailer] Loop de bienvenida activo (cutoff ID={WELCOME_CUTOFF_ID}, cada 5 min).")
+    print(f"[mailer] Loop de bienvenida activo (desde {FORM_REOPEN_DATE}, cada 5 min).")
     while True:
         await asyncio.sleep(300)  # 5 minutos
         try:
@@ -169,9 +170,8 @@ async def bienvenida_loop():
             guardado = False
 
             for a in aplicantes:
-                aid = a.get("id", 0)
-                if aid <= WELCOME_CUTOFF_ID:
-                    continue  # candidato anterior al corte
+                if a.get("fecha_aplicacion", "") < FORM_REOPEN_DATE:
+                    continue  # candidato anterior a la reapertura del formulario
                 key = str(aid)
                 if estados.get(key, {}).get("bienvenida_enviada"):
                     continue  # ya recibió el mail
@@ -338,9 +338,9 @@ def export_excel(filter: str = ""):
     resultados = merge_estados(resultados)
 
     if filter == "new":
-        resultados = [r for r in resultados if r.get("id", 0) > WELCOME_CUTOFF_ID]
+        resultados = [r for r in resultados if r.get("fecha_aplicacion", "") >= FORM_REOPEN_DATE]
     elif filter == "historical":
-        resultados = [r for r in resultados if r.get("id", 0) <= WELCOME_CUTOFF_ID]
+        resultados = [r for r in resultados if r.get("fecha_aplicacion", "") < FORM_REOPEN_DATE]
 
     BLACK = "1A1A1A"
     WHITE = "FFFFFF"
@@ -467,7 +467,7 @@ def test_mail(to: str):
 
 @app.post("/api/ranking/refresh-nuevos")
 async def refresh_nuevos():
-    """Re-evalúa solo los candidatos con ID > WELCOME_CUTOFF_ID (borra su caché)."""
+    """Re-evalúa solo los candidatos con fecha_aplicacion >= FORM_REOPEN_DATE (borra su caché)."""
     global eval_status
     if eval_status["running"]:
         return {"status": "already_running"}
@@ -475,14 +475,14 @@ async def refresh_nuevos():
     if os.path.exists(RESULTADOS_FILE):
         with open(RESULTADOS_FILE, encoding="utf-8") as f:
             todos = json.load(f)
-        # Mantener solo los viejos en caché
-        solo_viejos = [r for r in todos if r.get("id", 0) <= WELCOME_CUTOFF_ID]
+        # Mantener solo los históricos en caché
+        solo_historicos = [r for r in todos if r.get("fecha_aplicacion", "") < FORM_REOPEN_DATE]
         with open(RESULTADOS_FILE, "w", encoding="utf-8") as f:
-            json.dump(solo_viejos, f, ensure_ascii=False, indent=2)
+            json.dump(solo_historicos, f, ensure_ascii=False, indent=2)
 
     loop = asyncio.get_event_loop()
     aplicantes = await loop.run_in_executor(None, get_aplicantes)
-    nuevos = [a for a in aplicantes if a.get("id", 0) > WELCOME_CUTOFF_ID]
+    nuevos = [a for a in aplicantes if a.get("fecha_aplicacion", "") >= FORM_REOPEN_DATE]
     cached = [r for r in _load_cache() if not _is_fallback(r)]
 
     asyncio.create_task(run_evaluation_task(nuevos, cached))
