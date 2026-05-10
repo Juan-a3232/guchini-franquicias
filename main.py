@@ -174,7 +174,7 @@ async def bienvenida_loop():
             for a in aplicantes:
                 if a.get("fecha_aplicacion", "") < FORM_REOPEN_DATE:
                     continue  # candidato anterior a la reapertura del formulario
-                key = str(aid)
+                key = str(a.get("id", 0))
                 if estados.get(key, {}).get("bienvenida_enviada"):
                     continue  # ya recibió el mail
 
