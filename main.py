@@ -174,20 +174,30 @@ async def bienvenida_loop():
             for a in aplicantes:
                 if a.get("fecha_aplicacion", "") < FORM_REOPEN_DATE:
                     continue  # candidato anterior a la reapertura del formulario
-                key = str(a.get("id", 0))
-                if estados.get(key, {}).get("bienvenida_enviada"):
-                    continue  # ya recibió el mail
 
                 email  = (a.get("email") or "").strip()
                 nombre = (a.get("nombre") or "").strip()
                 if not email or not nombre:
                     continue
 
+                key_id    = str(a.get("id", 0))
+                key_email = f"email:{email}"
+
+                # Doble check: por ID Y por email — nunca se manda dos veces
+                ya_enviado = (
+                    estados.get(key_id, {}).get("bienvenida_enviada") or
+                    estados.get(key_email, {}).get("bienvenida_enviada")
+                )
+                if ya_enviado:
+                    continue
+
                 ok = mail_bienvenida(nombre, email)
                 if ok:
-                    if key not in estados:
-                        estados[key] = {}
-                    estados[key]["bienvenida_enviada"] = True
+                    # Guardamos por ambas claves para máxima seguridad
+                    for key in (key_id, key_email):
+                        if key not in estados:
+                            estados[key] = {}
+                        estados[key]["bienvenida_enviada"] = True
                     guardado = True
 
             if guardado:
@@ -469,12 +479,17 @@ async def marcar_bienvenidas_enviadas():
     for a in aplicantes:
         if a.get("fecha_aplicacion", "") < FORM_REOPEN_DATE:
             continue
-        key = str(a.get("id", 0))
-        if key not in estados:
-            estados[key] = {}
-        if not estados[key].get("bienvenida_enviada"):
-            estados[key]["bienvenida_enviada"] = True
-            marcados += 1
+        email = (a.get("email") or "").strip()
+        keys = [str(a.get("id", 0))]
+        if email:
+            keys.append(f"email:{email}")
+        for key in keys:
+            if key not in estados:
+                estados[key] = {}
+            if not estados[key].get("bienvenida_enviada"):
+                estados[key]["bienvenida_enviada"] = True
+                if key == keys[0]:  # contar solo una vez por candidato
+                    marcados += 1
     save_estados(estados)
     return {"ok": True, "marcados": marcados}
 
