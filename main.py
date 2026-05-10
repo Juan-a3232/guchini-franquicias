@@ -459,6 +459,26 @@ def export_excel(filter: str = ""):
     )
 
 
+@app.post("/api/admin/marcar-bienvenidas-enviadas")
+async def marcar_bienvenidas_enviadas():
+    """Marca a todos los candidatos nuevos como bienvenida ya enviada (evita re-envíos)."""
+    loop = asyncio.get_event_loop()
+    aplicantes = await loop.run_in_executor(None, get_aplicantes)
+    estados = load_estados()
+    marcados = 0
+    for a in aplicantes:
+        if a.get("fecha_aplicacion", "") < FORM_REOPEN_DATE:
+            continue
+        key = str(a.get("id", 0))
+        if key not in estados:
+            estados[key] = {}
+        if not estados[key].get("bienvenida_enviada"):
+            estados[key]["bienvenida_enviada"] = True
+            marcados += 1
+    save_estados(estados)
+    return {"ok": True, "marcados": marcados}
+
+
 @app.get("/api/test-mail")
 def test_mail(to: str):
     """Endpoint temporal para probar el envío de mails."""
