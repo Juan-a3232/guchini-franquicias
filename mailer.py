@@ -2,8 +2,13 @@ import os
 import base64
 import requests
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 
 CALENDAR_LINK = os.environ.get("CALENDAR_LINK", "")
+
+BROCHURE_PATH = os.path.join(os.path.dirname(__file__), "Brochure Guchini.pdf")
 
 
 def _get_access_token() -> str:
@@ -64,18 +69,56 @@ Equipo Guchini"""
 
 
 def mail_convocatoria(nombre: str, email: str) -> bool:
+    gmail_from = os.environ.get("GMAIL_FROM", "franquicias@guchini.com.ar")
+    if not os.environ.get("GMAIL_REFRESH_TOKEN"):
+        print("[mailer] GMAIL_REFRESH_TOKEN no configurado", flush=True)
+        return False
+
     link = CALENDAR_LINK or "[LINK_CALENDARIO]"
     subject = "Tu perfil fue seleccionado · Guchini Franquicias"
     body = f"""Hola {nombre},
 
 Buenas noticias — tu perfil destacó entre los candidatos y queremos avanzar.
 
-El próximo paso es una primera reunión virtual con el equipo de Guchini para conocernos y contarte los detalles de la franquicia.
+Te adjuntamos el brochure de Guchini con todos los detalles de la franquicia. Si te sigue interesando, el próximo paso es una reunión virtual con el equipo.
 
-Para coordinar la reunión, agendá un slot en el calendario desde acá:
+Agendá un slot en el calendario desde acá:
 {link}
 
 ¡Esperamos tu mensaje!
 Guchini"""
-    ok, _ = send_email(email, subject, body)
-    return ok
+
+    try:
+        access_token = _get_access_token()
+
+        mime = MIMEMultipart()
+        mime["to"]      = email
+        mime["from"]    = f"Guchini Franquicias <{gmail_from}>"
+        mime["subject"] = subject
+        mime["cc"]      = gmail_from
+        mime.attach(MIMEText(body))
+
+        # Adjuntar brochure si existe
+        if os.path.exists(BROCHURE_PATH):
+            with open(BROCHURE_PATH, "rb") as f:
+                part = MIMEBase("application", "pdf")
+                part.set_payload(f.read())
+            encoders.encode_base64(part)
+            part.add_header("Content-Disposition", "attachment", filename="Brochure Guchini.pdf")
+            mime.attach(part)
+            print(f"[mailer] Brochure adjuntado ({os.path.getsize(BROCHURE_PATH)//1024} KB)", flush=True)
+        else:
+            print(f"[mailer] ⚠ Brochure no encontrado en {BROCHURE_PATH}", flush=True)
+
+        raw = base64.urlsafe_b64encode(mime.as_bytes()).decode()
+        resp = requests.post(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"raw": raw},
+        )
+        resp.raise_for_status()
+        print(f"[mailer] ✓ Convocatoria enviada a {email}", flush=True)
+        return True
+    except Exception as e:
+        print(f"[mailer] ✗ Error enviando convocatoria a {email}: {e}", flush=True)
+        return False
