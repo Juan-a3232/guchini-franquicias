@@ -80,7 +80,7 @@ def mail_convocatoria(nombre: str, email: str) -> bool:
 
 Buenas noticias — tu perfil destacó entre los candidatos y queremos avanzar.
 
-Te adjuntamos el brochure de Guchini con todos los detalles de la franquicia. Si te sigue interesando, el próximo paso es una reunión virtual con el equipo.
+Te adjuntamos el brochure de Guchini con todos los detalles de la franquicia. El próximo paso es una reunión virtual con el equipo.
 
 Agendá un slot en el calendario desde acá:
 {link}
