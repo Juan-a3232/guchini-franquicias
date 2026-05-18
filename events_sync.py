@@ -3,7 +3,13 @@
 Lee resultados.json + estados.json del DATA_DIR (Railway Volume) y emite
 eventos anonimizados a la plataforma central de data flywheel.
 
-Disparado via POST /admin/sync-events con header X-Sync-Token.
+Idempotencia: vía `eventos_emitidos.json` en DATA_DIR (mapa key -> event_id).
+Re-correr el sync NO duplica — las keys ya emitidas se saltean.
+
+Automatización: `start_scheduler()` lanza un loop que corre `sync_all()` todos
+los días a SYNC_HOUR_UTC. Se llama desde el startup de main.py.
+
+Disparo manual: POST /admin/sync-events con header X-Sync-Token.
 """
 from __future__ import annotations
 
@@ -12,7 +18,7 @@ import hashlib
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -28,8 +34,15 @@ CLIENT_NAME = "Guchini"  # mismo cliente que guchini-ops (Federico es dueño)
 SECTOR = "gastro"
 FUENTE = "franquicias-ia"
 
-# Concurrencia para no demorar más de ~10s en ~700 candidatos
 CONCURRENCY = 10
+SYNC_HOUR_UTC = 6  # ~03:00 Argentina (UTC-3), horario de baja actividad
+
+# Estados manuales (estados.json) → tipo_evento de la plataforma
+ESTADO_TO_EVENTO = {
+    "Aprobado": "candidato_aprobado",
+    "Rechazado": "candidato_rechazado",
+    "Contactado": "candidato_contactado",
+}
 
 
 def _score_bucket(score: float) -> str:
@@ -53,23 +66,30 @@ def _hash_internal(name: str, client_hash: str) -> str:
     return hashlib.sha256(f"{client_hash}:{name}".encode()).hexdigest()[:12]
 
 
-# Estados manuales (estados.json) → tipo_evento de la plataforma
-ESTADO_TO_EVENTO = {
-    "Aprobado": "candidato_aprobado",
-    "Rechazado": "candidato_rechazado",
-    "Contactado": "candidato_contactado",
-}
+# ── Idempotencia: eventos_emitidos.json ────────────────────────────────────
+
+def _emitted_path() -> Path:
+    return Path(os.environ.get("DATA_DIR", ".")) / "eventos_emitidos.json"
 
 
-async def _post_event(http: httpx.AsyncClient, headers: dict, body: dict) -> tuple[bool, str]:
+def _load_emitted() -> dict[str, int]:
+    """Mapa {anomalia_key: event_id} de lo ya emitido a la plataforma."""
+    p = _emitted_path()
+    if not p.exists():
+        return {}
     try:
-        resp = await http.post("/events", headers=headers, json=body)
-        if resp.status_code == 200:
-            return True, ""
-        return False, f"HTTP {resp.status_code}: {resp.text[:200]}"
-    except Exception as e:
-        return False, str(e)
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
 
+
+def _save_emitted(emitted: dict[str, int]) -> None:
+    _emitted_path().write_text(
+        json.dumps(emitted, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
+# ── Construcción de eventos ────────────────────────────────────────────────
 
 def _build_evento_evaluado(client_hash: str, r: dict, now_iso: str) -> dict:
     cand_id = r.get("id")
@@ -115,18 +135,29 @@ def _build_evento_estado(client_hash: str, r: dict, estado: str, now_iso: str) -
     }
 
 
+async def _post_event(
+    http: httpx.AsyncClient, headers: dict, body: dict
+) -> tuple[bool, int | None, str]:
+    """Devuelve (ok, event_id, error)."""
+    try:
+        resp = await http.post("/events", headers=headers, json=body)
+        if resp.status_code == 200:
+            return True, resp.json().get("event_id"), ""
+        return False, None, f"HTTP {resp.status_code}: {resp.text[:200]}"
+    except Exception as e:
+        return False, None, str(e)
+
+
 async def sync_all() -> dict[str, Any]:
-    """Lee resultados + estados y emite todos los eventos. Idempotencia: NONE.
-    Re-correr generará duplicados en la DB de eventos."""
+    """Emite a la plataforma solo los eventos nuevos. Idempotente."""
     url = os.environ.get("EVENTS_PLATFORM_URL", "").rstrip("/")
     key = os.environ.get("EVENTS_PLATFORM_KEY", "")
     if not url or not key:
-        return {"ok": False, "error": "EVENTS_PLATFORM_URL o EVENTS_PLATFORM_KEY no setteados"}
+        return {"ok": False, "error": "EVENTS_PLATFORM_URL o EVENTS_PLATFORM_KEY no configurados"}
 
     data_dir = Path(os.environ.get("DATA_DIR", "."))
     resultados_path = data_dir / "resultados.json"
     estados_path = data_dir / "estados.json"
-
     if not resultados_path.exists():
         return {"ok": False, "error": f"resultados.json no encontrado en {resultados_path}"}
 
@@ -140,39 +171,81 @@ async def sync_all() -> dict[str, Any]:
     now_iso = datetime.now(timezone.utc).isoformat()
     headers = {"X-API-Key": key, "Content-Type": "application/json"}
 
-    # Construyo todos los bodies a enviar
-    bodies: list[dict] = []
+    emitted = _load_emitted()
+
+    # (key, body) de todos los eventos posibles
+    candidates: list[tuple[str, dict]] = []
     for r in resultados:
-        if r.get("id") is None:
+        cid = r.get("id")
+        if cid is None:
             continue
-        bodies.append(_build_evento_evaluado(client_hash, r, now_iso))
-        estado = (estados.get(str(r.get("id"))) or {}).get("estado")
-        evento_estado = _build_evento_estado(client_hash, r, estado, now_iso) if estado else None
-        if evento_estado:
-            bodies.append(evento_estado)
+        candidates.append(
+            (f"candidato_evaluado:{cid}", _build_evento_evaluado(client_hash, r, now_iso))
+        )
+        estado = (estados.get(str(cid)) or {}).get("estado")
+        if estado:
+            ev = _build_evento_estado(client_hash, r, estado, now_iso)
+            if ev:
+                candidates.append((f"{ev['tipo_evento']}:{cid}", ev))
+
+    to_send = [(k, b) for k, b in candidates if k not in emitted]
 
     sent = 0
     errors: list[str] = []
+    new_emitted: dict[str, int] = {}
     sem = asyncio.Semaphore(CONCURRENCY)
 
     async with httpx.AsyncClient(base_url=url, timeout=30.0) as http:
-        async def go(body: dict) -> None:
+        async def go(item: tuple[str, dict]) -> None:
             nonlocal sent
+            k, body = item
             async with sem:
-                ok, err = await _post_event(http, headers, body)
-                if ok:
+                ok, event_id, err = await _post_event(http, headers, body)
+                if ok and event_id is not None:
                     sent += 1
-                elif len(errors) < 20:
-                    errors.append(err)
+                    new_emitted[k] = event_id
+                elif not ok and len(errors) < 20:
+                    errors.append(f"{k}: {err}")
 
-        await asyncio.gather(*(go(b) for b in bodies))
+        await asyncio.gather(*(go(it) for it in to_send))
+
+    if new_emitted:
+        emitted.update(new_emitted)
+        _save_emitted(emitted)
 
     return {
         "ok": True,
         "sent": sent,
-        "attempted": len(bodies),
+        "attempted": len(to_send),
+        "skipped_ya_emitidos": len(candidates) - len(to_send),
+        "total_eventos_posibles": len(candidates),
         "errors": errors,
     }
+
+
+# ── Scheduler diario ───────────────────────────────────────────────────────
+
+async def _scheduler_loop() -> None:
+    """Corre sync_all() todos los días a SYNC_HOUR_UTC. Background task."""
+    while True:
+        now = datetime.now(timezone.utc)
+        nxt = now.replace(hour=SYNC_HOUR_UTC, minute=0, second=0, microsecond=0)
+        if nxt <= now:
+            nxt += timedelta(days=1)
+        wait_s = (nxt - now).total_seconds()
+        logger.info("events_sync scheduler: proximo sync en %.1f h", wait_s / 3600)
+        await asyncio.sleep(wait_s)
+        try:
+            result = await sync_all()
+            logger.info("events_sync scheduled run: %s", result)
+        except Exception as e:
+            logger.error("events_sync scheduled run failed: %s", e)
+
+
+def start_scheduler() -> None:
+    """Lanza el loop de sync diario como background task.
+    Llamar desde un startup event de FastAPI (hay event loop corriendo)."""
+    asyncio.create_task(_scheduler_loop())
 
 
 @router.post("/sync-events")

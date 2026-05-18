@@ -16,7 +16,7 @@ load_dotenv()
 from scorer import evaluar_todos_async, _safe_score
 from data_loader import load_candidates
 from mailer import mail_bienvenida, mail_convocatoria
-from events_sync import router as events_sync_router
+from events_sync import router as events_sync_router, start_scheduler
 
 GMAIL_FROM        = os.environ.get("GMAIL_FROM", "franquicias@guchini.com.ar")
 FORM_REOPEN_DATE  = os.environ.get("FORM_REOPEN_DATE", "2026-05-07")  # solo candidatos desde esta fecha
@@ -217,6 +217,7 @@ async def startup_event():
         print(f"[startup] Sin datos en {RESULTADOS_FILE} — esperando evaluación manual.")
 
     asyncio.create_task(bienvenida_loop())
+    start_scheduler()  # sync diario a pyme-events-platform
 
 
 # ─── API endpoints ─────────────────────────────────────────────────────────────
