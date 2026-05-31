@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException, Query, Security
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 from fastapi import Body
+from fastapi.security import APIKeyHeader
 from dotenv import load_dotenv
 import asyncio
 import json
@@ -19,7 +20,22 @@ from mailer import mail_bienvenida, mail_convocatoria
 from events_sync import router as events_sync_router, start_scheduler
 
 GMAIL_FROM        = os.environ.get("GMAIL_FROM", "franquicias@guchini.com.ar")
-FORM_REOPEN_DATE  = os.environ.get("FORM_REOPEN_DATE", "2026-05-07")  # solo candidatos desde esta fecha
+FORM_REOPEN_DATE  = os.environ.get("FORM_REOPEN_DATE", "2026-05-07")
+API_SECRET        = os.environ.get("API_SECRET", "")
+
+# ─── Auth ─────────────────────────────────────────────────────────────────────
+
+_api_key_header = APIKeyHeader(name="X-Api-Key", auto_error=False)
+
+def require_auth(
+    header_key: str | None = Security(_api_key_header),
+    token: str | None = Query(default=None),
+):
+    """Valida X-Api-Key header o ?token= query param. Si API_SECRET no está configurado, permite todo."""
+    if not API_SECRET:
+        return
+    if (header_key or token) != API_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 app = FastAPI()
 app.include_router(events_sync_router)
@@ -223,7 +239,7 @@ async def startup_event():
 # ─── API endpoints ─────────────────────────────────────────────────────────────
 
 @app.get("/api/ranking/status")
-def get_eval_status():
+def get_eval_status(_: None = Depends(require_auth)):
     return {
         "running": eval_status["running"],
         "done": eval_status["done"],
@@ -233,7 +249,7 @@ def get_eval_status():
 
 
 @app.get("/api/ranking")
-def get_ranking():
+def get_ranking(_: None = Depends(require_auth)):
     if os.path.exists(RESULTADOS_FILE):
         with open(RESULTADOS_FILE, encoding="utf-8") as f:
             resultados = json.load(f)
@@ -242,7 +258,7 @@ def get_ranking():
 
 
 @app.post("/api/ranking/refresh")
-async def refresh_ranking():
+async def refresh_ranking(_: None = Depends(require_auth)):
     """
     Kicks off a background re-evaluation.
     Only evaluates candidates whose email isn't in the current cache.
@@ -281,7 +297,7 @@ async def refresh_ranking():
 
 
 @app.post("/api/ranking/refresh-full")
-async def refresh_full_ranking():
+async def refresh_full_ranking(_: None = Depends(require_auth)):
     """Forces a full re-evaluation of ALL candidates (ignores cache)."""
     global eval_status
 
@@ -299,7 +315,7 @@ async def refresh_full_ranking():
 
 
 @app.post("/api/aplicante/{aplicante_id}/estado")
-def update_estado(aplicante_id: int, body: dict = Body(...)):
+def update_estado(aplicante_id: int, body: dict = Body(...), _: None = Depends(require_auth)):
     estados = load_estados()
     key = str(aplicante_id)
     if key not in estados:
@@ -331,7 +347,7 @@ def update_estado(aplicante_id: int, body: dict = Body(...)):
 
 
 @app.post("/api/aplicante/{aplicante_id}/nota")
-def update_nota(aplicante_id: int, body: dict = Body(...)):
+def update_nota(aplicante_id: int, body: dict = Body(...), _: None = Depends(require_auth)):
     estados = load_estados()
     key = str(aplicante_id)
     if key not in estados:
@@ -342,7 +358,7 @@ def update_nota(aplicante_id: int, body: dict = Body(...)):
 
 
 @app.get("/api/export/csv")
-def export_excel(filter: str = ""):
+def export_excel(filter: str = "", _: None = Depends(require_auth)):
     if not os.path.exists(RESULTADOS_FILE):
         return {"error": "No hay datos"}
 
@@ -471,7 +487,7 @@ def export_excel(filter: str = ""):
 
 
 @app.post("/api/admin/marcar-bienvenidas-enviadas")
-async def marcar_bienvenidas_enviadas():
+async def marcar_bienvenidas_enviadas(_: None = Depends(require_auth)):
     """Marca a todos los candidatos nuevos como bienvenida ya enviada (evita re-envíos)."""
     loop = asyncio.get_event_loop()
     aplicantes = await loop.run_in_executor(None, get_aplicantes)
@@ -495,16 +511,8 @@ async def marcar_bienvenidas_enviadas():
     return {"ok": True, "marcados": marcados}
 
 
-@app.get("/api/test-mail")
-def test_mail(to: str):
-    """Endpoint temporal para probar el envío de mails."""
-    from mailer import send_email
-    ok, error = send_email(to, "Test mail · Guchini Franquicias", "Este es un mail de prueba. Si llegó, el sistema funciona correctamente.")
-    return {"ok": ok, "error": error, "from": GMAIL_FROM, "to": to}
-
-
 @app.post("/api/ranking/refresh-nuevos")
-async def refresh_nuevos():
+async def refresh_nuevos(_: None = Depends(require_auth)):
     """Re-evalúa solo los candidatos con fecha_aplicacion >= FORM_REOPEN_DATE (borra su caché)."""
     global eval_status
     if eval_status["running"]:
@@ -525,20 +533,6 @@ async def refresh_nuevos():
 
     asyncio.create_task(run_evaluation_task(nuevos, cached))
     return {"status": "started", "nuevos": len(nuevos)}
-
-
-@app.get("/api/test-bienvenida")
-def test_bienvenida(nombre: str, to: str):
-    """Testea el mail de bienvenida (Mail 1)."""
-    ok = mail_bienvenida(nombre, to)
-    return {"ok": ok, "mail": "bienvenida", "to": to}
-
-
-@app.get("/api/test-convocatoria")
-def test_convocatoria(nombre: str, to: str):
-    """Testea el mail de convocatoria con calendario (Mail 2)."""
-    ok = mail_convocatoria(nombre, to)
-    return {"ok": ok, "mail": "convocatoria", "to": to}
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

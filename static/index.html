@@ -598,10 +598,26 @@
   }
 
   /* ==============================
+     AUTH
+  ============================== */
+  function getToken() { return sessionStorage.getItem('gk') || ''; }
+  function setToken(t) { sessionStorage.setItem('gk', t); }
+
+  async function apiFetch(url, opts = {}) {
+    opts.headers = { ...(opts.headers || {}), 'X-Api-Key': getToken() };
+    const res = await fetch(url, opts);
+    if (res.status === 401) {
+      sessionStorage.removeItem('gk');
+      alert('Contraseña incorrecta o sesión expirada. Recargá la página.');
+    }
+    return res;
+  }
+
+  /* ==============================
      RANKING
   ============================== */
   async function loadRanking() {
-    const res = await fetch('/api/ranking');
+    const res = await apiFetch('/api/ranking');
     const raw = await res.json();
     allData = raw;
     if (allData.length === 0) {
@@ -617,7 +633,7 @@
     btn.textContent = 'Iniciando...';
 
     // Kick off background evaluation
-    const startRes = await fetch('/api/ranking/refresh', { method: 'POST' });
+    const startRes = await apiFetch('/api/ranking/refresh', { method: 'POST' });
     const startData = await startRes.json();
 
     if (startData.status === 'no_new_candidates') {
@@ -636,7 +652,7 @@
     const total = startData.total || startData.new || 0;
 
     async function pollStatus() {
-      const res = await fetch('/api/ranking/status');
+      const res = await apiFetch('/api/ranking/status');
       const s = await res.json();
       const done = s.done || 0;
       const tot = s.total || total || 1;
@@ -658,7 +674,7 @@
         setTimeout(pollStatus, 1500);
       } else {
         // Done — load results
-        const rankRes = await fetch('/api/ranking');
+        const rankRes = await apiFetch('/api/ranking');
         const raw = await rankRes.json();
         allData = raw;
         renderRanking(allData);
@@ -672,7 +688,7 @@
     setTimeout(pollStatus, 800);
   }
 
-  function exportCSV(filter) { window.open('/api/export/csv?filter=' + (filter || ''), '_blank'); }
+  function exportCSV(filter) { window.open('/api/export/csv?filter=' + (filter || '') + '&token=' + encodeURIComponent(getToken()), '_blank'); }
 
   async function refreshFullRanking() {
     const pwd = prompt('⚠️ Re-evaluar todo borra el caché y cuesta ~$15. Ingresá la contraseña para confirmar:');
@@ -681,11 +697,11 @@
     const refreshBtn = document.getElementById('refreshBtn');
     btn.disabled = true;
     refreshBtn.disabled = true;
-    await fetch('/api/ranking/refresh-full', { method: 'POST' });
+    await apiFetch('/api/ranking/refresh-full', { method: 'POST' });
     // Reuse the same polling logic
     const lista = document.getElementById('lista');
     async function pollStatus() {
-      const res = await fetch('/api/ranking/status');
+      const res = await apiFetch('/api/ranking/status');
       const s = await res.json();
       const done = s.done || 0;
       const tot = s.total || allData.length || 1;
@@ -701,7 +717,7 @@
       if (s.running) {
         setTimeout(pollStatus, 1500);
       } else {
-        const rankRes = await fetch('/api/ranking');
+        const rankRes = await apiFetch('/api/ranking');
         const raw = await rankRes.json();
         allData = raw;
         renderRanking(allData);
@@ -867,7 +883,7 @@
   }
 
   async function updateEstado(id, estado) {
-    await fetch(`/api/aplicante/${id}/estado`, {
+    await apiFetch(`/api/aplicante/${id}/estado`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ estado })
@@ -878,7 +894,7 @@
 
   async function saveNota(id) {
     const nota = document.getElementById(`nota-${id}`).value;
-    await fetch(`/api/aplicante/${id}/nota`, {
+    await apiFetch(`/api/aplicante/${id}/nota`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nota })
@@ -1134,7 +1150,18 @@
     });
   }
 
-  loadRanking();
+  // Login: pedir contraseña si no está guardada en sesión
+  if (!getToken()) {
+    const pwd = prompt('Ingresá la contraseña para acceder:');
+    if (!pwd) {
+      document.body.innerHTML = '<p style="text-align:center;margin-top:30vh;font-family:sans-serif;color:#666">Acceso denegado</p>';
+    } else {
+      setToken(pwd);
+      loadRanking();
+    }
+  } else {
+    loadRanking();
+  }
 </script>
 </body>
 </html>
